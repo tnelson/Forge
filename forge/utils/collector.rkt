@@ -28,8 +28,9 @@
 ; gives the initial value of that context, defaulting to #f.
 
 ; Also, the ordering of internal traversals is consistent, but not adjustable:
-; e.g., a quantified formula will always produce
-;   (append <new variables> <collected from domains> <collected from inner formula>)
+; e.g., a quantified formula will interleave variable and domain results in
+; declaration order, followed by results from the inner formula. Variables are
+; only included if accepted by the matcher function.
 
 ; Finally, duplicates will not be removed. E.g., collecting on (& iden iden) will
 ; produce `iden` twice in the resulting list unless the matcher prevents it.
@@ -220,23 +221,40 @@
     [(node/int/sum-quant info decls int-expr)
      (process-quant-shaped-node expr decls int-expr quantvars matcher order collected stop context get-new-context)]))
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Used by quantified formulas, set comprehensions, and integer-sum expressions.
+;; Each quantifier variable is visited through the matcher (rather than being
+;; unconditionally included).
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
 (: process-quant-shaped-node (-> node Decls node (Listof node/expr/quantifier-var) (-> node Any Any) Symbol
                                  (Listof Any) (-> node Any Boolean) Any
                                  (-> node Any Any) (Listof Any)))
 (define (process-quant-shaped-node node decls inner-node quantvars matcher order collected stop context get-new-context)
-  (define new-vs-and-collected
-    (for/fold ([vs-and-collected : (List (Listof node/expr/quantifier-var) (Listof Any)) (list '() '())])
+  (define-values (new-vs domain-collected)
+    (for/fold ([curr-new-quantvars : (Listof node/expr/quantifier-var) '()]
+               [curr-domain-collected : (Listof Any) '()])
               ([decl decls])
-      (define curr-new-quantvars (first vs-and-collected))
+
+      ;; Visit the quantifier variable through the matcher
+      (define collected-this-quantvar
+        (visit (car decl) curr-new-quantvars
+               matcher order collected stop context get-new-context))
+
+      ;; Accumulate this variable for subsequent domain/body context
       (define new-quantvars (cons (car decl) curr-new-quantvars))
+
+      ;; Visit the domain expression with all previously-declared variables as context
       (define new-domain-collected
-        (visit (cdr decl) (append curr-new-quantvars new-quantvars) matcher order collected stop context get-new-context))         
-      (list new-quantvars (append (second vs-and-collected) new-domain-collected))))
-  
-  (define new-quantvars (reverse (first new-vs-and-collected)))
-  (define new-domain-collected (second new-vs-and-collected))
+        (visit (cdr decl) (append curr-new-quantvars new-quantvars)
+               matcher order collected stop context get-new-context))
+
+      (values new-quantvars
+              (append curr-domain-collected collected-this-quantvar new-domain-collected))))
+
+  (define new-quantvars (reverse new-vs))
   (define inner-collected (visit inner-node new-quantvars matcher order collected stop context get-new-context))
-  (append new-quantvars new-domain-collected inner-collected))
+  (append domain-collected inner-collected))
 
 (: interpret-int-op (-> node/int/op (Listof node/expr/quantifier-var) (Listof node) (-> node Any Any) Symbol
                         (Listof Any) (-> node Any Boolean) Any
@@ -292,7 +310,15 @@
     (check-equal?
      (collect fmla
               (lambda (n ctxt) (if (node/expr? n) n #f)) #:order 'pre-order)
-     (list v univ (&/func (->/func v v) iden) (->/func v v) v v iden)))
+     (list v univ (&/func (->/func v v) iden) (->/func v v) v v iden))
+
+    ;; Confirm that quantified variables are excluded when the matcher rejects them
+    (check-equal?
+     (collect fmla
+              (lambda (n ctxt) (if (and (node/expr? n)
+                                        (not (node/expr/quantifier-var? n))) n #f))
+              #:order 'pre-order)
+     (list univ (&/func (->/func v v) iden) (->/func v v) iden)))
 
   ; Confirm that multi-decl extraction works for the complex quantifier-shaped cases
   ; which all invoke the process-quant-shaped-node helper
@@ -307,8 +333,8 @@
     (check-equal?
      (collect expr (lambda (n ctxt) (if (node/expr? n) n #f)) #:order 'pre-order)
      (list expr
-           v1 v2
-           univ (&/func univ univ) univ univ
+           v1 univ
+           v2 (&/func univ univ) univ univ
            (&/func (->/func v1 v2) iden) (->/func v1 v2) v1 v2 iden)))
 
   ; Confirm that the stop policy is respected.
