@@ -182,7 +182,7 @@ jobs:
         cd "forge\tests\forge\custom-solver\win space test"
         set exitCode=0
         for %%f in (*.frg) do (
-          echo Running %%f (space path)...
+          echo Running %%f [space path]...
           racket "%%f" -O run_sterling 'off'
           if errorlevel 1 (
             echo FAILED: %%f
