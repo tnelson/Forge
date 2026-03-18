@@ -238,6 +238,9 @@ test expect {
     -- Nothing to do with priming; this one should give an empty-join error
     non_equiv4: {some x: Thread | baseline[x] != World.(loc[x])} 
       is forge_error
-    non_equiv5: {some x: Thread | baseline[x] != (World.loc[x])'} 
+    non_equiv5: {some x: Thread | baseline[x] != (World.loc[x])'}
       is unsat
+
+    prime_nonvar_comprehension: { some {t: Thread | some t}' }
+      is forge_error "Prime operator used in non-temporal context"
 }
