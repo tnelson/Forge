@@ -173,3 +173,20 @@ jobs:
           )
         )
         exit /b %exitCode%
+
+    - name: Run custom solver tests (path with spaces)
+      shell: cmd
+      run: |
+        mkdir "forge\tests\forge\custom-solver\win space test"
+        xcopy /s /e /i "forge\tests\forge\custom-solver\win" "forge\tests\forge\custom-solver\win space test"
+        cd "forge\tests\forge\custom-solver\win space test"
+        set exitCode=0
+        for %%f in (*.frg) do (
+          echo Running %%f (space path)...
+          racket "%%f" -O run_sterling 'off'
+          if errorlevel 1 (
+            echo FAILED: %%f
+            set exitCode=1
+          )
+        )
+        exit /b %exitCode%
