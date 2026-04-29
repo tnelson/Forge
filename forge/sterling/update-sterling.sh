@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-DEFAULT_REPO="sidprasad/sterling-ts"
+DEFAULT_REPO="sidprasad/copeanddrag"
 DEFAULT_TAG="latest"
 DEFAULT_ASSET="sterling-forge.zip"
 
