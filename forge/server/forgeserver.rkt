@@ -16,6 +16,7 @@
 
 (require (only-in forge/lang/ast relation-name raise-forge-error deparse node?)
          forge/server/modelToXML
+         forge/server/counterfactual-witness
          forge/evaluator
          xml
          net/sendurl "../racket-rfc6455/net/rfc6455.rkt" net/url web-server/http/request-structs racket/runtime-path
@@ -123,12 +124,22 @@
   
   (define command-string (format "~a" (syntax->datum command)))
 
-   (define (get-xml soln)    
+   (define (get-xml soln)
     ;(define tuple-annotations (if (and (Sat? model) (equal? 'on (get-option the-run 'local_necessity)))
     ;                              (build-tuple-annotations-for-ln model)
     ;                              (hash)))
     ; TODO: disable LN for winter '21 dev
-    (define tuple-annotations (hash))
+    ; For counterfactual results, flag every tuple of any relation
+    ; referenced by a dropped formula with `violates_cN`="true". This
+    ; gives CnD/Sterling enough signal to highlight "look here" without
+    ; needing per-tuple provenance.
+    (define tuple-annotations
+      (cond
+        [(and (RelaxedSat? soln) (not (empty? (Sat-instances soln))))
+         (build-witness-tuple-annotations
+          (RelaxedSat-dropped soln)
+          (first (Sat-instances soln)))]
+        [else (hash)]))
     (when (@>= (get-verbosity) VERBOSITY_STERLING)
       (printf "tuple annotations were: ~a~n" tuple-annotations))
     (solution-to-XML-string soln relation-map name command-string filepath
@@ -450,9 +461,17 @@
        ; The bitwidth for this run.
        (define bitwidth (get-bitwidth (Run-run-spec the-run)))
        
-       ; Helper to convert a solution to Alloy-format instance XML
-       (define (get-xml soln)    
-         (define tuple-annotations (hash)) ; no annotations at the moment
+       ; Helper to convert a solution to Alloy-format instance XML.
+       ; Same counterfactual witness flagging as the display-model path:
+       ; tag tuples of relations referenced by each dropped formula.
+       (define (get-xml soln)
+         (define tuple-annotations
+           (cond
+             [(and (RelaxedSat? soln) (not (empty? (Sat-instances soln))))
+              (build-witness-tuple-annotations
+               (RelaxedSat-dropped soln)
+               (first (Sat-instances soln)))]
+             [else (hash)]))
          (solution-to-XML-string soln
                                  (get-relation-map the-run) name command-string filepath
                                  bitwidth forge-version #:tuple-annotations tuple-annotations
