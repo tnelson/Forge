@@ -36,14 +36,19 @@
   [(start-server pardinus:start-server ) (-> Symbol Symbol (U False Path-String)
   (Values Output-Port Input-Port Input-Port  (-> Void) (-> Boolean)))])
 
-; (send-to-kodkod run-name run-spec bitwidth all-atoms solverspec total-bounds bound-lower 
+; (send-to-kodkod run-name run-spec bitwidth all-atoms solverspec total-bounds bound-lower
 ;   bound-upper run-constraints stdin stdout stderr))
-; Separate solver-specific translation for each solver backend
+; Separate solver-specific translation for each solver backend.
+;
+; send-to-kodkod now returns (Values all-rels core-map relax-context). The
+; relax-context is #f when the counterfactual option is off, and otherwise
+; an opaque hash used by get-next-kodkod-model to re-issue the problem with
+; assertions dropped. get-next-kodkod-model takes it as an extra argument.
 (require/typed forge/solver-specific/pardinus
-  [send-to-kodkod (-> Symbol Run-spec Integer (Listof FAtom) Any Any Any Any 
-                      (Listof node/formula) Output-Port Input-Port Input-Port 
-                      (Values Any Any))]
-  [get-next-kodkod-model (->* ((-> Boolean) Symbol Any (Listof FAtom) Any 
+  [send-to-kodkod (-> Symbol Run-spec Integer (Listof FAtom) Any Any Any Any
+                      (Listof node/formula) Output-Port Input-Port Input-Port
+                      (Values Any Any Any))]
+  [get-next-kodkod-model (->* ((-> Boolean) Symbol Any (Listof FAtom) Any Any
                                Output-Port Input-Port Input-Port)
                          (String) (U Sat Unsat Unknown))])
 
@@ -328,9 +333,9 @@
                                                      #:run-command run-command)))]        
           [(equal? backend 'pardinus)
            (begin
-             (define-values (all-rels core-map)
+             (define-values (all-rels core-map relax-context)
                (send-to-kodkod run-name run-spec bitwidth all-atoms solverspec total-bounds bound-lower bound-upper run-constraints stdin stdout stderr))
-             (lambda ([mode : String]) (get-next-kodkod-model is-running? run-name all-rels all-atoms core-map stdin stdout stderr mode)))]
+             (lambda ([mode : String]) (get-next-kodkod-model is-running? run-name all-rels all-atoms core-map relax-context stdin stdout stderr mode)))]
           [else (raise-forge-error #:msg (format "Invalid backend: ~a" backend) #:context run-command)]))
            
      

@@ -47,6 +47,24 @@
   [metadata : Any]  ; association list
   ) #:transparent)
 
+; A counterfactual result: the *original* run was UNSAT, but after dropping
+; one or more constraints from the unsat core we got a satisfying instance.
+; Substruct of Sat so that all existing consumers (modelToXML, lazy tree,
+; is-sat?, etc.) treat it as a normal SAT instance and render it through
+; the existing SAT path. Only solver/visualizer code that wants to *report*
+; the relaxation (status="counterfactual", dropped-formulas side panel)
+; needs to dispatch on RelaxedSat? before Sat?.
+(struct RelaxedSat Sat (
+  ; The constraints that were suppressed to make the problem satisfiable.
+  ; Same shape as Unsat-core: each element is either a node (AST node, when
+  ; we mapped back to the user's formula) or a String (when we couldn't).
+  [dropped : (Listof (U node String))]
+  ; The original unsat core that triggered relaxation. Useful for the
+  ; visualizer to explain "this was the conflict; we resolved it by dropping
+  ; the formulas in 'dropped'".
+  [original-core : (Listof (U node String))]
+  ) #:transparent)
+
 (struct Unsat (
   ; If there's a core, there are two cases per component:
   ;  (1) a node: a known formula
@@ -270,7 +288,12 @@
         'engine_verbosity  1
         'test_keep         'first
         'no_overflow       'false
-        'java_exe_location #f))
+        'java_exe_location #f
+        ; Counterfactual: when the run is UNSAT, drop core formulas and
+        ; re-solve, returning a near-instance instead of just UNSAT.
+        'counterfactual    'off
+        ; Max number of formulas to drop before giving up and reporting UNSAT.
+        'counterfactual_budget 5))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;;    Constants    ;;;;;;;
@@ -320,7 +343,9 @@
         'engine_verbosity exact-nonnegative-integer?
         'test_keep (oneof-pred '(first last))
         'no_overflow (oneof-pred '(false true))
-        'java_exe_location (lambda (x) (or (equal? x #f) (string? x)))))
+        'java_exe_location (lambda (x) (or (equal? x #f) (string? x)))
+        'counterfactual (oneof-pred '(on off))
+        'counterfactual_budget exact-nonnegative-integer?))
 
 (define option-types-names
   (hash 'eval-language "symbol"
@@ -342,7 +367,9 @@
         'engine_verbosity "non-negative integer"
         'test_keep "one of: first or last"
         'no_overflow "one of: false or true"
-        'java_exe_location "string"))
+        'java_exe_location "string"
+        'counterfactual "one of: on or off"
+        'counterfactual_budget "non-negative integer"))
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

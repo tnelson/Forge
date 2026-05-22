@@ -222,19 +222,42 @@
            (serve-sterling-static #:provider-port port
                                   #:static-port (get-option state-for-run 'sterling_static_port))]))) ; closes outer unless
 
-(define (make-status-value inst) 
-  (cond [(Sat? inst) "sat"]
+(define (make-status-value inst)
+  ; Note: RelaxedSat is a substruct of Sat, so the RelaxedSat? check must
+  ; come *before* the Sat? check — otherwise relaxed results would be
+  ; reported as plain "sat" and the visualizer would have no signal that
+  ; we dropped constraints to produce them.
+  (cond [(RelaxedSat? inst) "counterfactual"]
+        [(Sat? inst) "sat"]
         [(Unsat? inst) "unsat"]
         [(Unknown? inst) "unknown"]
         [else "error"]))
+
+; Deparse a core/dropped entry — same shape for both fields. An entry is
+; either an AST node (which we deparse to source) or a string Pardinus
+; couldn't map back to user syntax (pass through verbatim).
+(define (deparse-formula-entry cr)
+  (cond [(node? cr) (deparse cr)]
+        [(string? cr) cr]
+        [else (raise-forge-error
+               #:msg (format "Unexpected formula entry sending to Sterling: ~a" cr)
+               #:context #f)]))
+
 (define (make-core-value inst)
   (if (and (Unsat? inst) (Unsat-core inst))
-      (map (lambda (cr) (cond [(node? cr) (deparse cr)]
-                              [(string? cr) cr]
-                              [else (raise-forge-error #:msg (format "Unexpected core value sending to Sterling: ~a" cr)
-                                                       #:context #f)]))
-           (Unsat-core inst))
+      (map deparse-formula-entry (Unsat-core inst))
       #f))
+
+; The list of formulas that were dropped from the unsat core during
+; counterfactual relaxation. Only populated for RelaxedSat results; #f
+; for plain Sat (no relaxation happened) and Unsat (relaxation didn't
+; reach SAT, or wasn't enabled). Same wire shape as `core`, so the
+; Sterling-side renderer can reuse whatever formatting it uses for the
+; existing core display.
+(define (make-dropped-value inst)
+  (cond [(RelaxedSat? inst)
+         (map deparse-formula-entry (RelaxedSat-dropped inst))]
+        [else #f]))
 
 (define (make-sterling-data xml id run-name temporal? inst [old-id #f])
   (define not-done? (Sat? inst))
@@ -250,6 +273,12 @@
                             'data xml
                             'status (make-status-value inst)
                             'core (make-core-value inst)
+                            ; New: list of formulas dropped by the
+                            ; counterfactual relaxation, or #f when the
+                            ; result wasn't a counterfactual. Older
+                            ; Sterling clients that don't know about the
+                            ; field will just ignore it.
+                            'dropped (make-dropped-value inst)
                             'buttons (cond [(not not-done?) (list)]
                                            [temporal?
                                             (list (hash 'text "Next Trace"
