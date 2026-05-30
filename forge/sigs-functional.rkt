@@ -1117,7 +1117,16 @@
                            [(and (list? value) original-path)
                             (map translate-single-path value)]
                            [else value]))]
-      [else 
+      ; sterling_viz holds a viz-script path (or list of paths) to auto-load in Sterling.
+      ; Translate it relative to the model file, exactly like run_sterling's legacy path form.
+      [(equal? option 'sterling_viz)
+       (hash-set options 'sterling_viz (cond
+                           [(and (string? value) original-path)
+                            (translate-single-path value)]
+                           [(and (list? value) original-path)
+                            (map translate-single-path value)]
+                           [else value]))]
+      [else
        (hash-set options option value)]))
 
   (struct-copy State state
