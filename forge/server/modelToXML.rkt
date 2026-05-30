@@ -85,7 +85,13 @@
 ; Possibly annotate the XML with instructions on where to find visualization info.
 ; The option supports a _list_ of files, so Racket needs to disambiguate. 
 (define (sterling-viz-to-xml run-options)
-  (define rs-opt (hash-ref run-options 'run_sterling))
+  ; The dedicated 'sterling_viz option holds the viz file(s); it applies regardless of the
+  ; Sterling open mode (browser/headless/webview). For backward compatibility, fall back to a
+  ; legacy viz path/list left in 'run_sterling (its string/list form).
+  (define sv-opt (and run-options (hash-ref run-options 'sterling_viz #f)))
+  (define rs-opt (and run-options (hash-ref run-options 'run_sterling #f)))
+  (define viz-opt (or sv-opt
+                      (and (or (string? rs-opt) (list? rs-opt)) rs-opt)))
   (define (single-path-to-xml p)
     (cond [(and (string? p) (file-exists? p))
            ; the forge expander makes this an absolute path (see OptionDecl)
@@ -100,14 +106,14 @@
                   ""])]
           [(string? p)
            ; provided a path string, but there is no such file; show a warning but continue to load Sterling
-           (printf "A visualizer file in option run_sterling could not be found. Ignoring: ~a~n" p)
+           (printf "A visualizer file (option sterling_viz / run_sterling) could not be found. Ignoring: ~a~n" p)
            ""]
           [else
            ""]))
   (cond
     [(not run-options) ""]
-    [(string? rs-opt) (single-path-to-xml rs-opt)]
-    [(list? rs-opt) (apply string-append (map single-path-to-xml rs-opt))]
+    [(string? viz-opt) (single-path-to-xml viz-opt)]
+    [(list? viz-opt) (apply string-append (map single-path-to-xml viz-opt))]
     [else ""]))
 
 (define (clean ele)
