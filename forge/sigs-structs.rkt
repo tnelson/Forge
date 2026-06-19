@@ -265,6 +265,7 @@
         'skolem_depth      0
         'local_necessity   'off
         'run_sterling      'on
+        'sterling_viz      #f
         'sterling_port     0
         'sterling_static_port 0
         'engine_verbosity  1
@@ -315,6 +316,10 @@
                                       (string? x)
                                       (and (list? x)
                                            (andmap (lambda (ele) (string? ele)) x))))
+        'sterling_viz (lambda (x) (or (not x)
+                                      (string? x)
+                                      (and (list? x)
+                                           (andmap (lambda (ele) (string? ele)) x))))
         'sterling_port exact-nonnegative-integer?
         'sterling_static_port exact-nonnegative-integer?
         'engine_verbosity exact-nonnegative-integer?
@@ -337,6 +342,7 @@
         'skolem_depth "integer"
         'local_necessity "symbol"
         'run_sterling "symbol, string, or sequence of strings"
+        'sterling_viz "string, sequence of strings, or #f"
         'sterling_port "non-negative integer"
         'sterling_static_port "non-negative integer"
         'engine_verbosity "non-negative integer"
