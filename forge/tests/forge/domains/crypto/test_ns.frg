@@ -41,19 +41,19 @@ pred ns_scenario {
 test expect {
     -- Exact bounds: baseline regression test
     ns_attack: { ns_scenario }
-        for exactly 6 Timeslot, exactly 1 KeyPairs, exactly 6 Key, exactly 3 name, 16 mesg,
+        for exactly 6 Timeslot, exactly 2 Microtick, exactly 1 KeyPairs, exactly 6 Key, exactly 3 name, 16 mesg,
             exactly 2 text, exactly 5 Ciphertext, exactly 1 ns_init, exactly 1 ns_resp,
             exactly 3 PublicKey, exactly 3 PrivateKey, 0 skey, exactly 6 akey, exactly 3 strand,
             6 Int
-            for {next is linear}
+            for {next is linear  mt_next is linear}
         is sat
 
     -- Non-exact bounds: exercises bounds partition and cardinality constraints
     ns_attack_nonexact: { ns_scenario }
-        for 6 Timeslot, exactly 1 KeyPairs, 6 Key, 3 name, 16 mesg,
+        for 6 Timeslot, exactly 2 Microtick, exactly 1 KeyPairs, 6 Key, 3 name, 16 mesg,
             2 text, 5 Ciphertext, exactly 1 ns_init, exactly 1 ns_resp,
             3 PublicKey, 3 PrivateKey, 0 skey, 6 akey, 3 strand,
             6 Int
-            for {next is linear}
+            for {next is linear  mt_next is linear}
         is sat
 }

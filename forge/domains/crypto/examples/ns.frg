@@ -50,6 +50,12 @@ pred attack_conditions {
   ns_resp.agent != Attacker
 }
 
+// Uncomment these only for debugging purposes.
+// option solver MiniSatProver
+// option logtranslation 2
+// option coregranularity 2
+// option core_minimization rce
+
 ns_attack_witness: run {
     wellformed // wellformedness assumptions from domain model
     attack_conditions // various conditions for the attack
@@ -60,9 +66,11 @@ ns_attack_witness: run {
     
     attack_exists // find a trace witnessing the attack
     
-  } for exactly 6 Timeslot, exactly 1 KeyPairs, exactly 6 Key, exactly 3 name, 16 mesg,
+  } for exactly 6 Timeslot, exactly 2 Microtick,
+    exactly 1 KeyPairs, exactly 6 Key, exactly 3 name, 16 mesg,
     exactly 2 text, exactly 5 Ciphertext, exactly 1 ns_init, exactly 1 ns_resp,
     exactly 3 PublicKey, exactly 3 PrivateKey, 0 skey, exactly 6 akey, exactly 3 strand,
     6 Int 
     // TODO change over to some-based bounds
-    for {next is linear} 
+    for {next is linear 
+        mt_next is linear}  

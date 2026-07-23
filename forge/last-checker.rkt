@@ -254,6 +254,34 @@
     
     ; AND 
      [(? node/formula/op-on-formulas/&&?)
+
+      ; EXPERIMENT: can we extract a set of simple "variable in sig" 
+      ; constraints in this conjunction? Call the collector, keeping 
+      ; only "in" and "&&" formulas, and also stopping at AST nodes 
+      ; that aren't one of those.
+      (define (is-narrowable-formula n true-on-and) 
+        (match n
+          [(? node/formula/op-on-exprs/in?) #t]
+          [(? node/formula/op-on-formulas/&&?) true-on-and]
+          [(node/formula/op-on-formulas/! info (node/formula/op-on-exprs/in inner-info args)) #t]
+          [else #f]))
+      (define narrowing-candidates
+        (remove-duplicates
+        (collect formula
+              (lambda (n ctxt) 
+                (if (is-narrowable-formula n #f)
+                    n #f)) 
+              #:order 'pre-order
+              #:stop (lambda (n ctxt) (not (is-narrowable-formula n #t))))))
+        
+        (printf "NARROWING CANDIDATES: ~a~n" narrowing-candidates)
+        ; for each narrowing fmla obtained for a variable
+        ; intersect that narrowing expr with the domain in quantvars before recurring
+        ;   this is potentially a breaking change, e.g., for 
+        ;   (all x: univ | x in A and x not in A and needsA[x])
+        ; Might avoid problems if we don't carry the narrowing through predicate boundaries.
+        ; This also doesn't account for desugaring IFF formulas, etc. 
+
       (check-and-output formula
                         node/formula/op-on-formulas/&&
                         checker-hash
@@ -663,11 +691,11 @@
                        child-types)]
 
     
-    ; SETMINUS 
+    ; SETMINUS
     [(? node/expr/op-on-exprs/-?)
      (define child-types (map (lambda (x) (checkExpression run-or-state x quantvars checker-hash)) args))
      (begin
-       ; A-B should have only 2 children. B may not exist; use A as the bound returned regardless. 
+       ; A-B should have only 2 children. B may not exist; use A as the bound returned regardless.
        ; However, if B is present, we must /check/ it anyway (and discard non-error results).
        (when (@> (length args) 1)
          (expression-type-type (checkExpression run-or-state (second args) quantvars checker-hash)))

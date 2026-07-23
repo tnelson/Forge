@@ -42,7 +42,7 @@ reflect_responder_pov: run {
       //     uses the Attacker as the medium of communication. 
       //   - we follow CPSA terminology and use `mesg` to refer to any term, including plaintexts.
       //     Hence the high bound on `mesg`. 
-      exactly 4 Timeslot, 13 mesg,  
+      exactly 4 Timeslot, exactly 2 Microtick, 13 mesg,  
       // How many keys, and of what type, can exist in an execution of the protocol?
       exactly 1 KeyPairs, exactly 6 Key, exactly 6 akey, 0 skey, 
       exactly 3 PrivateKey, exactly 3 PublicKey,
@@ -54,7 +54,9 @@ reflect_responder_pov: run {
       1 Int
   // Manufacture bounds so that Timeslots are in linear ordering 
   // (similar to Alloy's ordering module: `open util/ordering[Timeslot]`)
-  for {next is linear}
+    for {next is linear 
+        mt_next is linear} 
+
 
 /*
   Note on bounds:

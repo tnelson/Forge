@@ -84,6 +84,14 @@ Forge does _bounded_ model finding; that is, it renders the search problem decid
 
 E.g., we might say that there are no more than `3` names in an execution of the reflection protocol: the initiator's name, the responder's name, and the attacker's name. (The attacker must be present, as the model follows Dolev-Yao is making them the medium by which principles communicate.)
 
+#### Time
+
+The model has two different notions of time:
+  - The `Timeslot` sig, which represents the handling of a single message. This should always be either sent or received by the `Attacker`, who is synonymous with the medium of communication.
+  - The `Microtick` sig, which is used to properly order how agents learn values within nested encrypted terms. The scope for `Microtick` should never be lower than `2`, representing the pre-state where nothing has yet been learned and the post-state where a single layer of encryption has been removed. If a protocol requires deeper nesting, increment the scope on `Microtick` to one more than the nesting depth.
+
+Note that the `Microtick` sig was not present in the original paper, which used the `Timeslot` sig for both kinds of "time", resulting in poor performance.
+
 ### Visualizing Executions 
 
 When Sterling opens, the solver will (perhaps after some delay) produce an instance. The default visualization will appear as a dense cluster of boxes and lines. To switch to the sequence diagram version, click on the 'Script' tab and paste in the contents of the [visualization script](./vis/crypto_viz.js). Then click 'Run'. 

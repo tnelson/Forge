@@ -250,7 +250,7 @@
      (read-ack port err-port)]
     [(list (== 'ack) id)     
      id]    
-    [(== eof)     
+    [(== eof)
      (error (format "~a CLI shut down unexpectedly while sending problem definition!" server-name))]
     [else
      (port-echo err-port (current-error-port) #:title server-name)
