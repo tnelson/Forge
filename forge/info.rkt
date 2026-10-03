@@ -4,7 +4,9 @@
 
 (define version "5.2")
 
-(define deps '("base"
+(define deps '("typed-racket-lib"
+               "typed-racket-more"
+               "base"
                "syntax-classes"       ; used in parser and expander
                "br-parser-tools-lib"  ; used in parser
                "parser-tools-lib"     ; used in parser/br
@@ -72,3 +74,4 @@
                               #rx"domains/abac/*"
                               #rx"domains/crypto/examples/*"
                               "OLD"))
+(define build-deps '("rackunit-typed"))
