@@ -40,7 +40,12 @@
     (define/public (initialize)
       (unless (initialized?)
         (set! cust (make-custodian))
-        (parameterize ([current-custodian cust])
+        ; Shutting down a custodian does not necessarily terminate subprocesses started under it. 
+        ; Setting the custodian mode to kill registers the subprocess, and the custodian will
+        ; terminate it when Forge exits. (This doesn't fix the issue of someone sending a KILL
+        ; signal to Forge itself.)
+        (parameterize ([current-custodian cust]
+                       [current-subprocess-custodian-mode 'kill])
           (define-values (p p-out p-in p-err) (initializer))
           (set!-values (server out in err) (values p p-out p-in p-err))
           (void))))

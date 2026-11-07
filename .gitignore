@@ -40,3 +40,9 @@ forge/pardinus-cli/classes
 forge/e2e/node_modules/
 forge/e2e/playwright-report/
 forge/e2e/test-results/
+
+# Local agent state
+**/.claude/settings.local.json
+**/.claude/.cc-writes/
+**/.claude/worktrees/
+**/.claude/scheduled_tasks.json
