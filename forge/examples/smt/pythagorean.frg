@@ -58,7 +58,7 @@ test expect {
                 isPythagoreanTriple[subtract[msq, nsq], multiply[2, multiply[m, n]], add[msq, nsq]]
             }
         }
-    } is theorem
+    } is checked
 
     // Generate a non-primitive triple using the m,n method. 
     pt2: {

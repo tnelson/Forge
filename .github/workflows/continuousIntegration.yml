@@ -47,6 +47,31 @@ jobs:
 
         echo "All test directories are covered by CI."
 
+  # Check forge/info.rkt's declared dependencies. If there is an undeclared dependency, 
+  # the build fails. Also, report declared but unused dependencies for informational purposes.
+  check-pkg-deps:
+    runs-on: ubuntu-latest
+    name: check-pkg-deps
+    steps:
+    - name: Checkout repo
+      uses: actions/checkout@v4
+
+    - name: Setup Racket
+      uses: Bogdanp/setup-racket@v1.14
+      with:
+        version: '8.15'
+
+    - name: Install Forge
+      run: raco pkg install --auto --no-docs ./forge
+
+    - name: Check declared package dependencies
+      run: raco setup --check-pkg-deps --no-docs --pkgs forge
+
+    - name: Report unused package dependencies (advisory)
+      continue-on-error: true
+      run: raco setup --check-pkg-deps --unused-pkg-deps --no-docs --pkgs forge
+
+  # Run Forge's test suite.
   test-forge:
     needs: check-test-coverage
     runs-on: ubuntu-latest
