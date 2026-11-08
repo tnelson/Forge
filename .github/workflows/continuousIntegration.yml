@@ -59,7 +59,7 @@ jobs:
     - name: Setup Racket
       uses: Bogdanp/setup-racket@v1.14
       with:
-        version: '8.15'
+        version: '9.3'
 
     - name: Install Forge
       run: raco pkg install --auto --no-docs ./forge
@@ -97,7 +97,7 @@ jobs:
     - name: Setup Racket
       uses: Bogdanp/setup-racket@v1.14
       with:
-        version: '8.15'
+        version: '9.3'
 
     - name: Setup Java
       uses: actions/setup-java@v4

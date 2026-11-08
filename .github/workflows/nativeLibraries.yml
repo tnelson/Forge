@@ -28,33 +28,32 @@ jobs:
             runner: ubuntu-24.04
             dir: linux-x86_64
             racket-arch: x64
-            racket-version: '8.15'
+            racket-version: '9.3'
           - name: linux-aarch64
             runner: ubuntu-24.04-arm
             dir: linux-aarch64
             racket-arch: arm64
-            # setup-racket only offers 'current' snapshots for Linux ARM.
-            racket-version: current
+            racket-version: '9.3'
           - name: macos-arm64
             runner: macos-15
             dir: macos
             racket-arch: arm64
-            racket-version: '8.15'
+            racket-version: '9.3'
           - name: macos-x86_64
             runner: macos-15-intel
             dir: macos
             racket-arch: x64
-            racket-version: '8.15'
+            racket-version: '9.3'
           - name: windows-x86_64
             runner: windows-latest
             dir: windows-x86_64
             racket-arch: x64
-            racket-version: '8.15'
+            racket-version: '9.3'
           - name: windows-arm64
             runner: windows-11-arm
             dir: windows-arm64
             racket-arch: arm64
-            racket-version: '8.15'
+            racket-version: '9.3'
             # ARM Windows doesn't have Java 17
             java: '21'
     runs-on: ${{ matrix.runner }}
@@ -85,6 +84,21 @@ jobs:
         architecture: ${{ matrix.racket-arch }}
 
     # Diagnostics
+    - name: Debug Racket on PATH (windows-arm64 only)
+      if: matrix.name == 'windows-arm64'
+      shell: bash
+      run: |
+        set +e
+        echo "--- Racket entries on PATH:"
+        echo "$PATH" | tr ':' '\n' | grep -i racket || echo "(none)"
+        echo "--- install directory:"
+        ls -la "/c/Program Files/Racket" | head -20
+        echo "--- command -v racket:"
+        command -v racket || echo "(not found)"
+        echo "--- from cmd:"
+        cmd //c "where racket"
+        exit 0
+
     - name: Record Racket version
       shell: bash
       run: racket --version > .racket-version
