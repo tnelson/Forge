@@ -5,6 +5,7 @@
          forge/shared)
 (require (for-syntax racket/base))
 (require (only-in racket curry add-between))
+(require "native-dir.rkt")
 
 (provide pardinus-initializer server%)
 
@@ -24,21 +25,11 @@
                    (find-executable-path (if windows? "java.exe" "java")))]
          [path-separator (if windows? ";" ":")]
          [cp (foldl string-append "" (add-between (map path->string jars) path-separator))]
-         [native-subdir (case (system-type)
-                         [(macosx) "macos"]
-                         [(unix) (if (equal? (system-type 'word) 64)
-                                     "linux-x86_64"
-                                     "linux-x86")]
-                         [(windows) (if (equal? (system-type 'word) 64)
-                                        "windows-x86_64"
-                                        "windows-x86")])]
-         [native-dir (build-path pardinus/jar "native" native-subdir)]
          [error-out (build-path (find-system-path 'home-dir) "forge-pardinus-error-output.txt")])
 
     (when (> (get-verbosity) VERBOSITY_LOW)
       (printf "  Starting solver process. subtype: ~a~n" solver-subtype))
 
-    (define lib-path (string-append "-Djava.library.path=" (path->string native-dir)))
     (define solver-subtype-str (cond [(equal? solver-subtype 'target) "-target-oriented"]
                                      [(equal? solver-subtype 'temporal) "-temporal"]
                                      [(equal? solver-subtype 'default) ""]
@@ -47,19 +38,38 @@
     (unless (file-exists? java)
       (raise-user-error 'start-server "Could not find a Java executable. Given or inferred location was: ~a. Type was: ~a" java (file-or-directory-type java)))
     
-    (when (>= (get-verbosity) VERBOSITY_HIGH)        
+    ; Ask the JVM which architecture it's running on. Fall back to Racket's judgement if necessary.
+    (define java-probe-output (java-probe java))
+    (define java-arch-name (java-os-arch java-probe-output))
+    (define cpu-choice (resolve-cpu java-arch-name (system-type 'arch)))
+    (define native-subdir (native-subdir-name (system-type 'os*) (car cpu-choice)))
+    (define native-dir (and native-subdir (build-path pardinus/jar "native" native-subdir)))
+    
+    ; Even if there are no native libraries available, Forge can run via SAT4j.
+    (define lib-path-args
+      (if (and native-dir (directory-exists? native-dir))
+          (list (string-append "-Djava.library.path=" (path->string native-dir)))
+          '()))
+    (when (>= (get-verbosity) VERBOSITY_HIGH)
+      (printf "  Native libraries: JVM os.arch=~a, Racket arch=~a, CPU used=~a (from ~a), OS=~a, directory=~a (~a)~n"
+              java-arch-name (system-type 'arch) (car cpu-choice) (cdr cpu-choice)
+              (system-type 'os*) native-subdir
+              (if (null? lib-path-args) "not found; no library path given to Java" "found")))
+
+    (when (>= (get-verbosity) VERBOSITY_HIGH)
       (printf "  Subprocess invocation information: ~a~n"
-              (list java "-cp" cp lib-path "kodkod.cli.KodkodServer"
-                    (format "-~a" solver-type) solver-subtype-str
-                    "-error-out" error-out)))
+              (append (list java "-cp" cp) lib-path-args
+                      (list "kodkod.cli.KodkodServer"
+                            (format "-~a" solver-type) solver-subtype-str
+                            "-error-out" error-out))))
 
     (apply
       subprocess #f #f #f java
       (append
-        (if (java>=1.9? java) (list "--add-opens" "java.base/java.lang=ALL-UNNAMED") '())
-        (list "-cp" cp
-              lib-path
-              "kodkod.cli.KodkodServer"
+        (if (java-version>=1.9? java-probe-output java) (list "--add-opens" "java.base/java.lang=ALL-UNNAMED") '())
+        (list "-cp" cp)
+        lib-path-args
+        (list "kodkod.cli.KodkodServer"
               (format "-~a" solver-type) solver-subtype-str
               "-error-out" error-out)))))
 

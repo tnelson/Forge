@@ -43,7 +43,7 @@
          VERBOSITY_LOW VERBOSITY_STERLING VERBOSITY_HIGH
          VERBOSITY_DEBUG VERBOSITY_LASTCHECK get-temp-dir)
 (provide forge-version forge-git-info instance-diff curr-forge-version remove-newlines)
-(provide port-echo java>=1.9? do-time format-tuple-set)
+(provide port-echo java>=1.9? java-version>=1.9? java-probe do-time format-tuple-set)
 
 ; Level of output when running specs
 (define VERBOSITY_SCRIPT 0) ; for test scripts
@@ -154,6 +154,11 @@
 (define (java>=1.9? java-exe)
   (define version-str (shell java-exe "-version"))
   (java-version>=1.9? version-str java-exe))
+
+; Launch the JVM and ask two questions: which version, and which architecture.
+(: java-probe (-> Path-String String))
+(define (java-probe java-exe)
+  (shell java-exe (list "-XshowSettings:properties" "-version")))
 
 (: java-version>=1.9? (-> String (U False Path-String) Boolean))
 (define (java-version>=1.9? version-str java-exe)
