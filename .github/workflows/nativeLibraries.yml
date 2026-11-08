@@ -38,6 +38,8 @@ jobs:
           - name: windows-arm64
             runner: windows-11-arm
             dir: windows-arm64
+            # ARM Windows doesn't have Java 17
+            java: '21'
     runs-on: ${{ matrix.runner }}
     name: native-${{ matrix.name }}
     steps:
@@ -48,7 +50,7 @@ jobs:
       uses: actions/setup-java@v4
       with:
         distribution: 'temurin'
-        java-version: '17'
+        java-version: ${{ matrix.java || '17' }}
 
     - name: Test native solver libraries
       shell: bash
