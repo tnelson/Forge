@@ -78,6 +78,8 @@ jobs:
 
     # Slower check that includes Forge's native module resolution.
     - name: Setup Racket
+      # (Temporary?) mitigation: MacOS x86_64 runner can stall.
+      timeout-minutes: 15
       uses: Bogdanp/setup-racket@v1.14
       with:
         version: ${{ matrix.racket-version }}
