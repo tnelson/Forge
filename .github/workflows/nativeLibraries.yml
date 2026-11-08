@@ -1,0 +1,57 @@
+name: Native Libraries
+
+on:
+  pull_request:
+    paths:
+    - 'forge/pardinus-cli/**'
+    - '.github/workflows/nativeLibraries.yml'
+  push:
+    branches:
+    - main
+    - dev
+    paths:
+    - 'forge/pardinus-cli/**'
+    - '.github/workflows/nativeLibraries.yml'
+  workflow_dispatch: ~
+
+jobs:
+  test-native:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: linux-x86_64
+            runner: ubuntu-24.04
+            dir: linux-x86_64
+          - name: linux-aarch64
+            runner: ubuntu-24.04-arm
+            dir: linux-aarch64
+          - name: macos-arm64
+            runner: macos-15
+            dir: macos
+          - name: macos-x86_64
+            runner: macos-15-intel
+            dir: macos
+          - name: windows-x86_64
+            runner: windows-latest
+            dir: windows-x86_64
+          - name: windows-arm64
+            runner: windows-11-arm
+            dir: windows-arm64
+    runs-on: ${{ matrix.runner }}
+    name: native-${{ matrix.name }}
+    steps:
+    - name: Checkout repo
+      uses: actions/checkout@v4
+
+    - name: Setup Java
+      uses: actions/setup-java@v4
+      with:
+        distribution: 'temurin'
+        java-version: '17'
+
+    - name: Test native solver libraries
+      shell: bash
+      run: |
+        chmod +x forge/pardinus-cli/jar/native/test-native.sh
+        forge/pardinus-cli/jar/native/test-native.sh --dir "${{ matrix.dir }}"

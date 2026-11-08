@@ -1,0 +1,30 @@
+native solver libraries for macos
+built (UTC):        2026-11-08T18:08:50Z
+pardinus commit:    8ef6b7401ee0497fe231d05626d4ed7d91f2c461 (tracked files: clean)
+build host:         macOS 26.7.1, arm64
+xcode:              
+compiler:           Apple clang version 21.0.0 (clang-2100.3.34.2)
+sdk:                27.0 (/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk)
+jdk:                javac 26.0.2.1
+deployment target:  macOS 12.0
+cpus:               x86_64 arm64
+link flags:         -Wl,-dead_strip_dylibs -Wl,-install_name,@rpath/<library>.dylib
+verifier sha256:    3d3015f098f512fc7356a038c6b2d23a2385c451e2c87cb3eebcdaeae2ef39bc
+waf sha256:         93909bca823a675f9f40af7c65b24887c3a3c0efdf411ff1978ba827194bdeb0
+
+pinned sources (sources.lock):
+  waf        sha256  93909bca823a675f9f40af7c65b24887c3a3c0efdf411ff1978ba827194bdeb0  waf-2.0.24
+  glucose    sha256  8dba2a417fd9f1170f1b7d14547688ee12c92a980e0b009e85aec1a5a4a0052f  glucose/glucose-syrup.tgz
+  lingeling  sha256  9d1fc5d5804fdc41cb3b8cb2dedabbd3fb27e639b3b1f57e157153665828fb81  lingeling/lingeling-ayv-86bf266-140429.zip
+  minisat    git     14c78206cd12d1d36b7e042fa758747c135670a4                          minisat/minisat
+  minisatp   git     7377e0bccf8bafcb4f3c4dcf108e51cdb3faa7de                          minisatp/minisatp
+  llvm-mingw-x86_64   sha256  919380403de87dca3c581c2053230cd298af5e891286628ba0613b7fed370926  llvm-mingw-20261104-ucrt-ubuntu-22.04-x86_64.tar.xz
+  llvm-mingw-aarch64  sha256  595e95bdffabfc62559fe26e30bdfbccf277cbaed4902793555015ee47306b94  llvm-mingw-20261104-ucrt-ubuntu-22.04-aarch64.tar.xz
+  jdk-jni-h           sha256  1266aea5b9f5d5db1cb6f8e5c6c43cfa7f80bc4f72d7fe42c6131bb939dc70f4  jni.h
+  jdk-jni-md-windows  sha256  dbf96659c4c840b15ef40237db0c65657eca7a70904225fc984deb38999df515  jni_md.h
+
+libraries (sha256, bytes, name):
+  5dcab93dc5e8282c2fc7bff340466f2e2ab2a2daa73db95a285223a0f3c32495  238448  libglucose.dylib
+  5223eb94d572253a4bba3801cd52542a72afd18df03d8dbda5f5841348a3c884  1165440  liblingeling.dylib
+  65fbbe2bf72874c570f98b07c8a9def298de368d014ad28e54535f1ce8093fcd  228080  libminisat.dylib
+  dfd55f156f16baa4270507b021a4a7a1f69360b78e0458353b6f5f4d48911ccd  143688  libminisatprover.dylib
