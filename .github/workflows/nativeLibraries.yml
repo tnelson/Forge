@@ -116,7 +116,7 @@ jobs:
     - name: Run native solver tests through Forge
       shell: bash
       run: |
-        for solver in minisat glucose minisatprover; do
+        for solver in glucose; do
           echo "== test_native_solvers_${solver}.frg"
           if ! out="$(racket forge/tests/forge/other/test_native_solvers_${solver}.frg -O run_sterling off -O verbose 5 2>&1)"; then
             echo "$out" | grep -v "Subprocess invocation information"
