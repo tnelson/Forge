@@ -223,7 +223,8 @@
               (~optional mult:HelperMultClass #:defaults ([mult #'#f]))
               expr:ExprClass)
       ; Assign Alloy-convention defaults: set if arity >1, one otherwise
-      #:attr translate (with-syntax ([expr #'expr] 
+      ; Invoke intexpr->expr/maybe in case the Decl ranges over literal integers. 
+      #:attr translate (with-syntax ([expr #'(intexpr->expr/maybe expr #:op 'quantifier #:info #f)] 
                                      [mult (if (syntax->datum #'mult)
                                                ; Don't quote this; will be (ArrowDeclMult ...)
                                                #'mult

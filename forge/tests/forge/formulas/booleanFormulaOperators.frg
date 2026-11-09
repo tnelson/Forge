@@ -75,6 +75,23 @@ pred Implies { -- =>, implies, <=>, iff, => else, implies else
     not (False iff True)
     False iff False
 
+    // This may seem odd to test, but we've seen poor performance
+    //  with chained operators before.
+    (True <=> True) <=> True
+    (True <=> False) <=> False
+    (False <=> True) <=> False
+    (False <=> False) <=> True
+    not ((True <=> True) <=> False)
+    not ((True <=> False) <=> True)
+    not ((False <=> True) <=> True)
+    not ((False <=> False) <=> False)
+    True <=> (True <=> True)
+    True <=> (False <=> False)
+    False <=> (True <=> False)
+    False <=> (False <=> True)
+    not (True <=> (True <=> False))
+    not (False <=> (False <=> False))
+
     True => True else True
     True => True else False
     not (True => False else True)
