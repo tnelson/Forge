@@ -1017,7 +1017,8 @@
                        "/no-name.frg" 
                        (get-bitwidth (Run-run-spec run)) 
                        empty
-                       get-contrast-model-generator))))
+                       get-contrast-model-generator
+                       #:model-namespace (lambda () (namespace-anchor->namespace (nsa)))))))
 
 (define-syntax (display stx)
   (syntax-case stx ()
