@@ -1,6 +1,6 @@
 #lang racket/base
 
-(require racket/lazy-require racket/list racket/match racket/string racket/format racket/path
+(require racket/lazy-require racket/list racket/match
          (only-in forge/sigs-structs Run-run-spec Run-command Run-result Run-atoms Run-spec-preds Run-spec-state
                   Unsat? Unsat-kind Sat? Relation? Relation-name get-option
                   get-all-rels is-solver-process-alive? close-run)
@@ -12,7 +12,9 @@
 ;; sigs-functional also uses the Sterling server. Load the solver entry point
 ;; on the first diagnostic request, after the model has finished loading.
 (lazy-require [forge/sigs-functional (run-from-state)])
-(provide near-miss-available? near-miss-options find-near-miss)
+(provide near-miss-available? near-miss-rules find-near-miss (struct-out relaxed-formula))
+
+(struct relaxed-formula (formula cases) #:transparent)
 
 (define (near-miss-available? run result)
   (and (Unsat? result) (memq (Unsat-kind result) '(unsat no-counterexample))
@@ -40,7 +42,7 @@
   (and (pair? args)
        (for/first ([key args] [value (cdr args)] #:when (eq? keyword (syntax-e key))) value)))
 
-;; Stock Forge expands a check into a run with (! (&& ...)) as its goal.
+;; Forge expands a check into a run with (! (&& ...)) as its goal.
 ;; This syntax survives compilation, including when expansion-origin metadata
 ;; has been stripped from a cached model.
 (define (check-command? run)
@@ -49,7 +51,8 @@
                [(list (list '! (list '&& _ ...))) #t]
                [_ #f])))
 
-(define (command-parts run)
+;; Fixed formulas and relaxable formulas, in the order used by pins and previous corrections.
+(define (near-miss-rules run)
   (define preds (Run-spec-preds (Run-run-spec run)))
   (match preds
     [(list (ast:node/formula/op-on-formulas/! _ (list property)))
@@ -60,92 +63,54 @@
        [_ (values preds '())])]
     [_ (values '() (append-map conjuncts preds))]))
 
-(define (rule-label f)
-  (define loc (ast:nodeinfo-loc (ast:node-info (unfold f))))
-  (define label
-    (if (ast:node/fmla/pred-spacer? f)
-        (format "~a: ~a" (ast:node/fmla/pred-spacer-name f) (ast:deparse f))
-        (ast:deparse f)))
-  (if (and (srcloc? loc) (path? (srcloc-source loc)) (srcloc-line loc))
-      (format "~a:~a · ~a" (file-name-from-path (srcloc-source loc)) (srcloc-line loc) label)
-      label))
+;; Record the value of an operand and, where it reads a field directly, the
+;; underlying field tuples in declaration order. Derived values (e.g. closure)
+;; need not be members of any field. Keep that distinction for all arities.
+(define (observation run expr [mult #f])
+  (define value (evaluate run '() expr))
+  (define entry (hash 'expression expr 'value value))
+  (define result (if mult (hash-set entry 'multiplicity mult) entry))
+  (define-values (field rows)
+    (match expr
+      [(? Relation? r) (values r value)]
+      [(ast:node/expr/op-on-exprs/join _ _ (list (ast:node/expr/atom _ _ a) (? Relation? r)))
+       (values r (for/list ([row value]) (cons a row)))]
+      [(ast:node/expr/op-on-exprs/join _ _ (list (? Relation? r) (ast:node/expr/atom _ _ a)))
+       (values r (for/list ([row value]) (append row (list a))))]
+      [_ (values #f '())]))
+  (if field
+      (hash-set (hash-set result 'relation (Relation-name field)) 'tuples rows)
+      result))
 
-(define (near-miss-options run)
-  (define-values (fixed rules) (command-parts run))
-  (hash 'rules (map rule-label rules) 'fixed (map ast:deparse fixed)))
-
-;; Evidence is evaluated on the same SAT solution used for the diagram. A
-;; comprehension finds a counterbinding; substitution lets Forge evaluate the
-;; actual relation at those atoms without reparsing source strings.
 (define (explain run formula)
-  (define lines '())
-  (define atoms '())
-  (define edges '())
-  (define (say s) (set! lines (cons s lines)))
-  (define (ev n) (evaluate run '() n))
-  (define (remember tuples)
-    (set! atoms (append (map ~a (append* tuples)) atoms)))
-  (define (values-of expr)
-    (define val (ev expr))
-    (cond
-      [(list? val)
-       (define shown (take val (min 8 (length val))))
-       (remember shown)
-       (say (format "~a = {~a}~a" (ast:deparse expr)
-                    (string-join (for/list ([t shown]) (string-join (map ~a t) " → ")) ", ")
-                    (if (> (length val) 8) (format " (first 8 of ~a tuples)" (length val)) "")))
-       ;; Only annotate real binary field tuples. A join/closure result may
-       ;; be derived, and an absent tuple must never be drawn as an actual edge.
-       (define-values (rel tuples)
-         (match expr
-           [(? Relation? r) (values r shown)]
-           [(ast:node/expr/op-on-exprs/join _ _ (list (ast:node/expr/atom _ _ a) (? Relation? r)))
-            (values r (map (lambda (t) (cons a t)) shown))]
-           [_ (values #f '())]))
-       (when (and rel (= 2 (ast:node/expr-arity rel)))
-         (for ([t tuples] #:when (= 2 (length t)))
-           (set! edges (cons (hash 'relation (~a (Relation-name rel))
-                                   'source (~a (first t)) 'target (~a (second t))) edges))))]
-      [else (say (format "~a = ~a" (ast:deparse expr) val))])
-    val)
-  (define (walk f)
-    (match (unfold f)
-      [(ast:node/formula/quantified _ q decls body)
-       (define matches (ev (ast:set/func decls (if (eq? q 'all) (ast:!/func body) body))))
-       (cond [(null? matches)
-              (say (if (eq? q 'all) "Every binding satisfies the body."
-                       "No binding satisfies the body."))]
-             [else
-              (define tuple (first matches))
-              (remember (list tuple))
-              (say (format "With ~a, the quantified body is ~a."
-                           (string-join (for/list ([d decls] [v tuple])
-                                          (format "~a = ~a" (ast:deparse (car d)) v)) ", ")
-                           (if (eq? q 'all) "false" "true")))
-              (define grounded
-                (for/fold ([acc body]) ([d decls] [v tuple])
-                  (substitute-formula run acc (get-all-rels run) (Run-atoms run) '()
-                                      (car d) (if (number? v) (ast:sing/func (ast:int/func v))
-                                                  (ast:atom/func v)))))
-              (walk grounded)])]
-      [(ast:node/formula/multiplicity _ mult expr)
-       (define tuples (values-of expr))
-       (define required (hash-ref (hash 'lone "at most one" 'one "exactly one"
-                                        'no "zero" 'some "at least one") mult #f))
-       (when (and required (list? tuples))
-         (say (format "The expression contains ~a ~a. The source multiplicity ~a requires ~a."
-                      (length tuples) (if (= 1 (length tuples)) "tuple" "tuples") mult required)))]
-      [(ast:node/formula/op-on-exprs _ children) (for-each values-of children)]
-      [(ast:node/formula/op-on-ints _ children) (for-each values-of children)]
-      [(ast:node/formula/op-on-formulas/! _ (list child)) (walk child)]
-      [(ast:node/formula/op-on-formulas _ children)
-       (for ([child children]) (say (format "~a is ~a." (ast:deparse child) (if (ev child) "true" "false"))))]
-      [_ (void)]))
-  ;; A language-specific evaluator may not support every derived subexpression.
-  ;; Minimality still certifies that the original source formula is false.
-  (with-handlers ([exn:fail? (lambda (_) (void))]) (walk formula))
-  (hash 'rule (rule-label formula) 'details (reverse lines)
-        'atoms (remove-duplicates atoms) 'edges (remove-duplicates edges)))
+  (define (walk f bindings)
+    (define (result observations) (list (hash 'bindings bindings 'evaluations observations)))
+    ;; Some evaluators cannot inspect every subexpression. The source formula
+    ;; and any bindings already established still belong to the relaxation.
+    (with-handlers ([exn:fail? (lambda (_) (result '()))])
+      (match (unfold f)
+        [(ast:node/formula/quantified _ q decls body)
+         (define query (ast:set/func decls (if (eq? q 'all) (ast:!/func body) body)))
+         (define matches (evaluate run '() query))
+         (if (null? matches)
+             (result (list (hash 'expression query 'value '())))
+             (append*
+              (for/list ([row matches])
+                (define assignment
+                  (for/list ([d decls] [a row])
+                    (hash 'variable (car d) 'atom a)))
+                (define grounded
+                  (for/fold ([acc body]) ([d decls] [a row])
+                    (substitute-formula run acc (get-all-rels run) (Run-atoms run) '()
+                                        (car d) (if (number? a) (ast:sing/func (ast:int/func a))
+                                                    (ast:atom/func a)))))
+                (walk grounded (append bindings assignment)))))]
+        [(ast:node/formula/multiplicity _ mult expr) (result (list (observation run expr mult)))]
+        [(ast:node/formula/op-on-formulas/! _ (list child)) (walk child bindings)]
+        [(? ast:node/formula/op? op)
+         (result (for/list ([child (ast:node/formula/op-children op)]) (observation run child)))]
+        [_ (result '())])))
+  (relaxed-formula formula (walk formula '())))
 
 (define (original-bounds run model-ns)
   ;; Use the lexical context of the loaded model. Inst objects reapply their
@@ -163,12 +128,14 @@
     (match-define (cons sig numbers) (syntax->list clause))
     (cons (eval-syntax sig model-ns) (map syntax-e numbers))))
 
+;; Return the Sat witness, relaxed rule indices, and their evidence on this witness.
+;; If no correction remains, return #f and two empty lists.
 ;; Grow a satisfiable subset of the source conjuncts with fixed structure,
 ;; bounds and pinned rules. Each rejected addition is UNSAT, and stays UNSAT
 ;; as the retained set grows. Its complement is an inclusion-minimal correction.
 (define (find-near-miss original result pins model-ns [previous '()])
   (unless (near-miss-available? original result) (error 'near-miss "This result cannot be diagnosed."))
-  (define-values (fixed rules) (command-parts original))
+  (define-values (fixed rules) (near-miss-rules original))
   (define (rule i) (list-ref rules i))
   (define (rule-indices? ids)
     (and (list? ids) (andmap (lambda (i) (and (exact-nonnegative-integer? i) (< i (length rules)))) ids)))

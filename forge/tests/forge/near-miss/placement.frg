@@ -20,3 +20,9 @@ partial: run { max[Int] = 3  no next } for exactly 2 Node, 3 Int for {
     Node = `Alpha + `Beta
     `Alpha.next ni `Beta
 }
+
+sig Catalog { entries: set Replica -> Disk }
+wide: run {
+    entries = Catalog -> Replica -> Disk
+    all c: Catalog | no c.entries
+} for exactly 2 Catalog, exactly 3 Replica, exactly 3 Disk

@@ -14,8 +14,9 @@
 ;   should be called for any context where a menu of commands doesn't fit (such as a
 ;   failing test, perhaps). 
 
-(require (only-in forge/lang/ast relation-name raise-forge-error deparse node?)
-         "near-miss.rkt"
+(require (only-in forge/lang/ast relation-name raise-forge-error deparse node? node-info nodeinfo-loc
+                  node/fmla/pred-spacer? node/fmla/pred-spacer-name node/fmla/pred-spacer-expanded)
+         forge/near-miss
          forge/server/modelToXML
          forge/evaluator
          xml
@@ -246,12 +247,30 @@
            (Unsat-core inst))
       #f))
 
+;; Keep native expressions and atom identities until the Sterling boundary.
+(define (evidence->json x)
+  (cond [(node? x) (deparse x)]
+        [(symbol? x) (symbol->string x)]
+        [(list? x) (map evidence->json x)]
+        [(hash? x) (for/hash ([(k v) (in-hash x)]) (values k (evidence->json v)))]
+        [else x]))
+
+(define (formula-source f)
+  (define named? (node/fmla/pred-spacer? f))
+  (define loc (nodeinfo-loc (node-info (if named? (node/fmla/pred-spacer-expanded f) f))))
+  (hash 'text (deparse f)
+        'predicate (and named? (symbol->string (node/fmla/pred-spacer-name f)))
+        'file (and (srcloc? loc) (srcloc-source loc) (format "~a" (srcloc-source loc)))
+        'line (and (srcloc? loc) (srcloc-line loc))))
+
 (define (make-sterling-data xml id run-name temporal? inst [old-id #f]
                             #:run [run #f] #:near-miss [miss #f])
   (define not-done? (and (not miss) (Sat? inst)))
   (define diagnostic-fields
     (cond [miss (hash 'nearMiss miss)]
-          [(and run (near-miss-available? run inst)) (hash 'nearMissOptions (near-miss-options run))]
+          [(and run (near-miss-available? run inst))
+           (define-values (fixed rules) (near-miss-rules run))
+           (hash 'nearMissOptions (hash 'rules (map formula-source rules) 'fixed (map formula-source fixed)))]
           [else (hash)]))
   (jsexpr->string
    (hash
@@ -307,8 +326,11 @@
           [else
            (define report
              (if witness
-                 (hash 'violations evidence 'keep pins 'previous (cons dropped previous) 'more "available")
-                 (hash 'message "The fixed scope, declarations and required formulas already exclude every instance.")))
+                 (hash 'violations (for/list ([v evidence])
+                                     (hash 'formula (formula-source (relaxed-formula-formula v))
+                                           'cases (evidence->json (relaxed-formula-cases v))))
+                       'keep pins 'previous (cons dropped previous) 'more "available")
+                 (hash 'reason "fixed-unsat")))
            (define instance (or witness original))
            (make-sterling-data (get-xml instance) (symbol->string (gensym 'diagnosis))
                                (Run-name run) #f instance

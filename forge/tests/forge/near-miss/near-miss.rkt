@@ -1,6 +1,7 @@
 #lang racket/base
-(require rackunit racket/list racket/string racket/runtime-path
-         "placement.frg" "../../../server/near-miss.rkt"
+(require rackunit racket/list racket/runtime-path
+         "placement.frg" "../../../near-miss.rkt"
+         (only-in forge/lang/ast deparse)
          (only-in forge/sigs-structs Run-result Sat? Sat-instances Unsat)
          (prefix-in tree: forge/utils/lazy-tree))
 
@@ -18,9 +19,18 @@
 (check-true (Sat? w))
 (check-equal? dropped '(1))
 (define v (first evidence))
-(check-not-false (string-contains? (hash-ref v 'rule) "separated"))
-(check-true (>= (length (hash-ref v 'edges)) 2))
-(check-true (andmap (lambda (e) (equal? "copies" (hash-ref e 'relation))) (hash-ref v 'edges)))
+(define-values (fixed rules) (near-miss-rules placement))
+(check-eq? (relaxed-formula-formula v) (second rules))
+(for ([c (relaxed-formula-cases v)])
+  (define d (first (hash-ref c 'bindings)))
+  (define e (first (hash-ref c 'evaluations)))
+  (check-equal? (deparse (hash-ref d 'variable)) "d")
+  (check-equal? (hash-ref e 'multiplicity) 'lone)
+  (check-equal? (hash-ref e 'relation) "copies")
+  (check-true (>= (length (hash-ref e 'tuples)) 2))
+  (for ([t (hash-ref e 'tuples)])
+    (check-equal? (car t) (hash-ref d 'atom))
+    (check-not-false (member t (hash-ref (first (Sat-instances w)) 'copies)))))
 
 (define (explanations run pins)
   (let loop ([previous '()])
@@ -30,7 +40,8 @@
 (check-equal? (sort (explanations placement '()) < #:key car) '((0) (1)))
 (check-equal? (explanations placement '(0)) '((1)))
 (check-equal? (explanations placement '(0 1)) '())
-(check-equal? (length (hash-ref (near-miss-options safety) 'fixed)) 1)
+(define-values (goals assumptions) (near-miss-rules safety))
+(check-equal? (length goals) 1)
 (check-equal? (explanations safety '()) '((0)))
 ;; Two independent conflicts have four incomparable minimal corrections.
 (check-equal? (sort (explanations independent '()) string<? #:key (lambda (x) (format "~a" x)))
@@ -45,3 +56,16 @@
 (check-not-false (member '(Alpha Beta) (hash-ref bound-instance 'next)))
 (check-equal? (length (hash-ref bound-instance 'Node)) 2)
 (check-equal? partial-ids '(1))
+
+;; Return every counterbinding and the complete field tuples, including arity > 2.
+(define-values (wide-witness wide-ids wide-evidence) (diagnose wide '(0)))
+(define cases (relaxed-formula-cases (first wide-evidence)))
+(check-equal? (length cases) 2)
+(define entries (hash-ref (first (Sat-instances wide-witness)) 'entries))
+(for ([c cases])
+  (define a (hash-ref (first (hash-ref c 'bindings)) 'atom))
+  (define e (first (hash-ref c 'evaluations)))
+  (check-equal? (hash-ref e 'relation) "entries")
+  (check-equal? (length (hash-ref e 'value)) 9)
+  (check-equal? (hash-ref e 'tuples) (map (lambda (row) (cons a row)) (hash-ref e 'value)))
+  (for ([row (hash-ref e 'tuples)]) (check-not-false (member row entries))))
