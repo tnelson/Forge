@@ -187,6 +187,11 @@
    ; Don't allow priming, as this is now semantic ("next state")
    [(: (or alphabetic "@" "_") (* (or alphabetic numeric "_" "\"")))   ;; "’" "”"
     (token+ 'IDENTIFIER-TOK "" lexeme "" lexeme-start lexeme-end #f #t)]
+   
+   ; Generated atom names have the form <signame>$<n>. 
+   [(: (or alphabetic "@" "_") (* (or alphabetic numeric "_" "\"")) "$" (:+ numeric))
+    (token+ 'IDENTIFIER-TOK "" lexeme "" lexeme-start lexeme-end #f #t)]
+   
    [(* (char-set "➡️"))   ;; "’" "”"
     (token+ 'IDENTIFIER-TOK "" lexeme "" lexeme-start lexeme-end)]
 

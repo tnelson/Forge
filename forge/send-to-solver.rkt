@@ -466,16 +466,25 @@
       (define the-set (or (sbound-upper the-bound) (sbound-lower the-bound)))
       ((inst map FAtom Tuple) car (set->list the-set)))))
 
+  ; Keep track of atom names used so far. This includes both user-provided and generated atoms.
+  (: used-atom-names (Mutable-HashTable FAtom #t))
+  (define used-atom-names (make-hash))
+  (for ([atom (in-list all-user-atoms)])
+    (hash-set! used-atom-names atom #t))
+
   ; Generate the "next" atom ID for a given sig, based on what's been generated/declared so far
   (: get-next-name (-> Sig Symbol))
   (define (get-next-name sig)
     (define atom-number (add1 (hash-ref curr-atom-number (Sig-name sig) (lambda () -1))))
     (let loop ([atom-number atom-number])
       (hash-set! curr-atom-number (Sig-name sig) atom-number)
-      (define new-name (string->symbol (format "~a~a" (Sig-name sig) atom-number)))
-      (if (member new-name all-user-atoms)
-          (loop (add1 atom-number))
-          new-name)))
+      ; Use the Alloy-style generated atom name so that sig name and index are kept separate.
+      (define new-name (string->symbol (format "~a$~a" (Sig-name sig) atom-number)))
+      (cond [(hash-has-key? used-atom-names new-name)
+             (loop (add1 atom-number))]
+            [else
+             (hash-set! used-atom-names new-name #t)
+             new-name])))
 
   ; Generate <num> new names for sig <sig>
   (: generate-names (-> Sig Integer (Listof Symbol)))
