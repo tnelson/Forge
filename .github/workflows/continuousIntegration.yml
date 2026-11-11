@@ -82,7 +82,7 @@ jobs:
           - name: forge-1
             test-dir: tests/forge/other
           - name: forge-2
-            test-dir: tests/forge/bounds tests/forge/domains tests/forge/eval-model tests/forge/examples tests/forge/expressions tests/forge/formulas tests/forge/fuzz tests/forge/ints tests/forge/library tests/forge/relations tests/forge/sigs tests/forge/target
+            test-dir: tests/forge/bounds tests/forge/domains tests/forge/eval-model tests/forge/examples tests/forge/expressions tests/forge/formulas tests/forge/ints tests/forge/library tests/forge/relations tests/forge/sigs tests/forge/target
           - name: forge-core
             test-dir: tests/forge-core tests/forge-functional
           - name: smt
