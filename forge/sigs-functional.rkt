@@ -977,7 +977,8 @@
                        (get-bitwidth
                         (Run-run-spec run)) 
                        empty
-                       get-contrast-model-generator))))
+                       get-contrast-model-generator
+                       #:model-namespace (lambda () (namespace-anchor->namespace (nsa)))))))
 
 (define (solution-diff s1 s2)
   (map instance-diff (Sat-instances s1) (Sat-instances s2)))

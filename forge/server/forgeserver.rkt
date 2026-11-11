@@ -14,7 +14,9 @@
 ;   should be called for any context where a menu of commands doesn't fit (such as a
 ;   failing test, perhaps). 
 
-(require (only-in forge/lang/ast relation-name raise-forge-error deparse node?)
+(require (only-in forge/lang/ast relation-name raise-forge-error deparse node? node-info nodeinfo-loc
+                  node/fmla/pred-spacer? node/fmla/pred-spacer-name node/fmla/pred-spacer-expanded)
+         forge/near-miss
          forge/server/modelToXML
          forge/evaluator
          xml
@@ -69,6 +71,8 @@
 ; handler-proc: (-> connection message void) - handles non-ping messages
 ; port-option: the port number to listen on (0 for ephemeral)
 (define (start-websocket-server port-option handler-proc)
+  ;; A click can issue several queries on the shared Pardinus stream.
+  (define lock (make-semaphore 1))
   (define chan (make-async-channel))
   (define stop-service
     (ws-serve
@@ -80,7 +84,7 @@
              (printf "Message received from Sterling: ~a~n" m))
            (cond [(equal? m "ping")
                   (send-to-sterling "pong" #:connection connection)]
-                 [else (handler-proc connection m)])
+                 [else (call-with-semaphore lock (lambda () (handler-proc connection m)))])
            (loop))))
      #:port port-option #:confirmation-channel chan))
   (define port (async-channel-get chan))
@@ -94,7 +98,8 @@
 ; get-next-instance returns the next instance each time it is called, or #f.
 (define (display-model
          the-run orig-lazy-tree relation-map evaluate-func name command
-         filepath bitwidth funs-n-preds get-contrast-model-generator)
+         filepath bitwidth funs-n-preds get-contrast-model-generator
+         #:model-namespace [model-namespace #f])
   (do-time "forgeserver display-model")
 
   (define state-for-run (Run-spec-state (Run-run-spec the-run)))
@@ -157,6 +162,11 @@
        (define onClick (hash-ref (hash-ref json-m 'payload) 'onClick))
        (define next? (equal? "next" (substring onClick 0 4)))
        (cond
+         [(equal? onClick "near-miss")
+          (define payload (hash-ref json-m 'payload))
+          (define response (near-miss-response the-run (get-current-instance) curr-datum-id
+                                               payload get-xml model-namespace))
+          (send-to-sterling response #:connection connection)]
          [next?          
           (define old-datum-id curr-datum-id)
           (define-values (datum-id inst)
@@ -166,7 +176,8 @@
                   [else
                    (printf "Sterling: unexpected 'next' request type: ~a~n" json-m)]))
           (define xml (get-xml inst))
-          (define response (make-sterling-data xml datum-id name temporal? inst old-datum-id))
+          (define response (make-sterling-data xml datum-id name temporal? inst old-datum-id
+                                             #:run (and model-namespace the-run)))
           (send-to-sterling response #:connection connection)]
          [else
           (printf "Sterling: unexpected onClick: ~a~n" json-m)])     
@@ -179,7 +190,7 @@
        (define inst (get-current-instance)) 
        (define id curr-datum-id)
        (define xml (get-xml inst))
-       (define response (make-sterling-data xml id name temporal? inst))
+       (define response (make-sterling-data xml id name temporal? inst #:run (and model-namespace the-run)))
        (send-to-sterling response #:connection connection)     
        ]
       [(equal? (hash-ref json-m 'type) "eval")
@@ -236,19 +247,43 @@
            (Unsat-core inst))
       #f))
 
-(define (make-sterling-data xml id run-name temporal? inst [old-id #f])
-  (define not-done? (Sat? inst))
+;; Keep native expressions and atom identities until the Sterling boundary.
+(define (evidence->json x)
+  (cond [(node? x) (deparse x)]
+        [(symbol? x) (symbol->string x)]
+        [(list? x) (map evidence->json x)]
+        [(hash? x) (for/hash ([(k v) (in-hash x)]) (values k (evidence->json v)))]
+        [else x]))
+
+(define (formula-source f)
+  (define named? (node/fmla/pred-spacer? f))
+  (define loc (nodeinfo-loc (node-info (if named? (node/fmla/pred-spacer-expanded f) f))))
+  (hash 'text (deparse f)
+        'predicate (and named? (symbol->string (node/fmla/pred-spacer-name f)))
+        'file (and (srcloc? loc) (srcloc-source loc) (format "~a" (srcloc-source loc)))
+        'line (and (srcloc? loc) (srcloc-line loc))))
+
+(define (make-sterling-data xml id run-name temporal? inst [old-id #f]
+                            #:run [run #f] #:near-miss [miss #f])
+  (define not-done? (and (not miss) (Sat? inst)))
+  (define diagnostic-fields
+    (cond [miss (hash 'nearMiss miss)]
+          [(and run (near-miss-available? run inst))
+           (define-values (fixed rules) (near-miss-rules run))
+           (hash 'nearMissOptions (hash 'rules (map formula-source rules) 'fixed (map formula-source fixed)))]
+          [else (hash)]))
   (jsexpr->string
    (hash
     'type "data"
     'version 1
     'payload (hash
               'enter (list
-                      (hash 'id id
+                      (hash-union
+                       (hash 'id id
                             'generatorName (->string run-name)
                             'format "alloy"
                             'data xml
-                            'status (make-status-value inst)
+                            'status (if (and miss (Sat? inst)) "near-miss" (make-status-value inst))
                             'core (make-core-value inst)
                             'buttons (cond [(not not-done?) (list)]
                                            [temporal?
@@ -262,12 +297,44 @@
                                             (list (hash 'text "Next"
                                                         'mouseover "(Get next instance)"
                                                         'onClick "next"))])                            
-                            'evaluator not-done?))
+                            'evaluator not-done?)
+                       diagnostic-fields))
                 'update (if old-id 
                             (list (hash 'id old-id
                                         'actions (list)
                                         'evaluator #f))
                             (list))))))
+
+;; Both buttons use the original UNSAT run. The client returns the index sets
+;; already shown, so the provider needs no separate diagnostic cursor.
+(define (near-miss-response run original original-id payload get-xml model-namespace)
+  (define id (hash-ref payload 'id))
+  (define context (hash-ref payload 'context))
+  (define (update fields)
+    (jsexpr->string (hash 'type "data" 'version 1 'payload
+                          (hash 'update (list (hash-set fields 'id id))))))
+  (with-handlers ([exn:fail? (lambda (e) (update (hash 'diagnosticError (exn-message e))))])
+    (unless (and original model-namespace
+                 (equal? (hash-ref context 'originalId id) (->string original-id)))
+      (raise-forge-error #:msg "Unknown UNSAT result. Run the command again." #:context (Run-command run)))
+    (define pins (hash-ref context 'keep '()))
+    (define previous (hash-ref context 'previous '()))
+    (define-values (witness dropped evidence)
+      (find-near-miss run original pins (model-namespace) previous))
+    (cond [(and (not witness) (pair? previous))
+           (update (hash 'nearMiss (hash 'more "exhausted")))]
+          [else
+           (define report
+             (if witness
+                 (hash 'violations (for/list ([v evidence])
+                                     (hash 'formula (formula-source (relaxed-formula-formula v))
+                                           'cases (evidence->json (relaxed-formula-cases v))))
+                       'keep pins 'previous (cons dropped previous) 'more "available")
+                 (hash 'reason "fixed-unsat")))
+           (define instance (or witness original))
+           (make-sterling-data (get-xml instance) (symbol->string (gensym 'diagnosis))
+                               (Run-name run) #f instance
+                               #:near-miss (hash-set report 'originalId (->string original-id)))])))
 
 (define (make-sterling-eval result id datum-id)
   ; note datum-id currently unused in the response JSON
@@ -430,6 +497,13 @@
                                  #:run-options (State-options (Run-spec-state (Run-run-spec the-run)))))
 
        (cond
+        [(equal? onClick "near-miss")
+         (define id (string->number (hash-ref contextPayload 'originalId (hash-ref payload 'id))))
+         (define original (and (eq? the-run (hash-ref id-to-run-map id #f))
+                               (hash-ref id-to-instance-map id #f)))
+         (define response (near-miss-response the-run original id payload get-xml
+                                              (lambda () (namespace-anchor->namespace (nsa)))))
+         (send-to-sterling response #:connection connection)]
         [next?          
          (define old-datum-id curr-datum-id)
          (define-values (datum-id inst)
@@ -447,7 +521,7 @@
          ; Sat? is about whether the solution we have is Sat.
          (define response (make-sterling-data xml datum-id name temporal?
                                               (and (is-solver-process-alive? the-run) (not (is-run-closed? the-run)) inst)
-                                              old-datum-id))
+                                              old-datum-id #:run the-run))
         (send-to-sterling response #:connection connection)]
        [else
         (raise-forge-error #:msg (format "Sterling: unexpected onClick: ~a~n" json-m)
