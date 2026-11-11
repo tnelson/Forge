@@ -68,9 +68,9 @@ pred goal[s: State] {
 /** Both systems satisfy initiation */
 test expect {
     initiation_1: {all s: State | init_1[s] implies goal[s]} 
-      for 1 State is theorem
+      for 1 State is checked
     initiation_2: {all s: State | init_2[s] implies goal[s]} 
-      for 1 State is theorem
+      for 1 State is checked
 }
 
 /** *Both* fail consecution. The goal is not inductive.  
@@ -100,10 +100,10 @@ pred phi_1[s: State] {
 /** Is phi_1 inductive in system 1? Yes it is. */
 test expect {
     phi_1_initiation_sys_1: {all s: State | init_1[s] implies phi_1[s]
-      } for 1 State is theorem
+      } for 1 State is checked
     phi_1_consecution_sys_1: {all pre, post: State | 
       (phi_1[pre] and delta_1[pre, post]) implies phi_1[post]
-      } for 2 State is theorem
+      } for 2 State is checked
 }
 
 /** Trying consecution for system 1 again, relative to phi_1.
@@ -112,7 +112,7 @@ test expect {
 test expect {
     consecution_1_again: {all pre, post: State | 
         (phi_1[pre] and goal[pre] and delta_1[pre, post]) implies 
-        (goal[post])} for 2 State is theorem
+        (goal[post])} for 2 State is checked
 }
 
 -----------------------------------------------------------
@@ -123,7 +123,7 @@ test expect {
   use it as a helper lemma in checking consecution for the goal. However... */
 test expect {
     phi_1_initiation_sys_2: {all s: State | init_2[s] implies phi_1[s]
-    } for 1 State is theorem
+    } for 1 State is checked
     phi_1_consecution_sys_2: {not {all pre, post: State | 
       (phi_1[pre] and delta_2[pre, post]) implies phi_1[post]
     }} for 2 State is sat
@@ -137,5 +137,5 @@ test expect {
 test expect {
     consecution_2_again_not_relative: {all pre, post: State | 
         (phi_1[pre] and goal[pre] and delta_2[pre, post]) implies 
-        (phi_1[post] and goal[post])} for 2 State is theorem
+        (phi_1[post] and goal[post])} for 2 State is checked
 }

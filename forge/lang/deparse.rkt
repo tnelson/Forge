@@ -7,6 +7,7 @@
 (require forge/lang/ast)
 (require racket/match
          racket/list
+         racket/string
          (only-in racket [<= @<=] [< @<]))
 
 (provide deparse)
@@ -65,6 +66,10 @@
         [else 
             (format "(COULD-NOT-DEPARSE: ~a)" arg)]))
 
+; For, e.g., &&, ||, +, -, &, ->, join, etc. Be robust to k-ary, not only binary, versions.
+(define (deparse-nary-infix children deparse-child priority separator)
+  (string-join (map (lambda (child) (deparse-child child priority)) children) separator))
+
 (define (deparse-formula-op formula parent-priority)  
   (match formula
     [(? node/formula/op-on-formulas/&&?)
@@ -74,17 +79,15 @@
            [(equal? 1 (length (node/formula/op-children formula)))
             (format "~a" (deparse-formula (first (node/formula/op-children formula)) PRIORITY-AND))]
            [else 
-            (let ([left-child (deparse-formula (first (node/formula/op-children formula)) PRIORITY-AND)]
-                  [right-child (deparse-formula (second (node/formula/op-children formula)) PRIORITY-AND)])
+            (let ([joined (deparse-nary-infix (node/formula/op-children formula) deparse-formula PRIORITY-AND " && ")])
               (if (@< PRIORITY-AND parent-priority)
-                (format "(~a && ~a)" left-child right-child)
-                (format "~a && ~a" left-child right-child)))])]
+                (format "(~a)" joined)
+                joined))])]
     [(? node/formula/op-on-formulas/||?)
-     (let ([left-child (deparse-formula (first (node/formula/op-children formula)) PRIORITY-OR)]
-           [right-child (deparse-formula (second (node/formula/op-children formula)) PRIORITY-OR)])
+     (let ([joined (deparse-nary-infix (node/formula/op-children formula) deparse-formula PRIORITY-OR " || ")])
         (if (@< PRIORITY-OR parent-priority)
-            (format "(~a || ~a)" left-child right-child)
-            (format "~a || ~a" left-child right-child)))]
+            (format "(~a)" joined)
+            joined))]
     [(? node/formula/op-on-formulas/=>?)
      (let ([left-child (deparse-formula (first (node/formula/op-children formula)) PRIORITY-IMPLIES)]
            [right-child (deparse-formula (second (node/formula/op-children formula)) PRIORITY-IMPLIES)])
@@ -236,29 +239,25 @@
 (define (deparse-expr-op expr parent-priority)
   (match expr
     [(? node/expr/op-on-exprs/+?)
-     (let ([left-child (deparse-expr (first (node/expr/op-children expr)) PRIORITY-PLUS)]
-           [right-child (deparse-expr (second (node/expr/op-children expr)) PRIORITY-PLUS)])
+     (let ([joined (deparse-nary-infix (node/expr/op-children expr) deparse-expr PRIORITY-PLUS " + ")])
         (if (@<= PRIORITY-PLUS parent-priority)
-            (format "(~a + ~a)" left-child right-child)
-            (format "~a + ~a" left-child right-child)))]
+            (format "(~a)" joined)
+            joined))]
     [(? node/expr/op-on-exprs/-?)
-     (let ([left-child (deparse-expr (first (node/expr/op-children expr)) PRIORITY-MINUS)]
-           [right-child (deparse-expr (second (node/expr/op-children expr)) PRIORITY-MINUS)])
+     (let ([joined (deparse-nary-infix (node/expr/op-children expr) deparse-expr PRIORITY-MINUS " - ")])
         (if (@<= PRIORITY-MINUS parent-priority)
-            (format "(~a - ~a)" left-child right-child)
-            (format "~a - ~a" left-child right-child)))]
+            (format "(~a)" joined)
+            joined))]
     [(? node/expr/op-on-exprs/&?)
-     (let ([left-child (deparse-expr (first (node/expr/op-children expr)) PRIORITY-INTERSECT)]
-           [right-child (deparse-expr (second (node/expr/op-children expr)) PRIORITY-INTERSECT)])
+     (let ([joined (deparse-nary-infix (node/expr/op-children expr) deparse-expr PRIORITY-INTERSECT " & ")])
         (if (@<= PRIORITY-INTERSECT parent-priority)
-            (format "(~a & ~a)" left-child right-child)
-            (format "~a & ~a" left-child right-child)))]
+            (format "(~a)" joined)
+            joined))]
     [(? node/expr/op-on-exprs/->?)
-     (let ([left-child (deparse-expr (first (node/expr/op-children expr)) PRIORITY-CROSSPROD)]
-           [right-child (deparse-expr (second (node/expr/op-children expr)) PRIORITY-CROSSPROD)])
+     (let ([joined (deparse-nary-infix (node/expr/op-children expr) deparse-expr PRIORITY-CROSSPROD "->")])
         (if (@<= PRIORITY-CROSSPROD parent-priority)
-            (format "(~a->~a)" left-child right-child)
-            (format "~a->~a" left-child right-child)))]
+            (format "(~a)" joined)
+            joined))]
 
     [(? node/expr/op-on-exprs/prime?)
      (let ([child (deparse-expr (first (node/expr/op-children expr)) PRIORITY-PRIME)])
@@ -267,11 +266,10 @@
             (format "~a'" child)))]
 
     [(? node/expr/op-on-exprs/join?)
-     (let ([left-child (deparse-expr (first (node/expr/op-children expr)) PRIORITY-JOIN)]
-           [right-child (deparse-expr (second (node/expr/op-children expr)) PRIORITY-JOIN)])
+     (let ([joined (deparse-nary-infix (node/expr/op-children expr) deparse-expr PRIORITY-JOIN ".")])
         (if (@< PRIORITY-JOIN parent-priority)
-            (format "(~a.~a)" left-child right-child)
-            (format "~a.~a" left-child right-child)))]
+            (format "(~a)" joined)
+            joined))]
     [(? node/expr/op-on-exprs/^?)
      (let ([child (deparse-expr (first (node/expr/op-children expr)) PRIORITY-EXP)])
         (if (@< PRIORITY-EXP parent-priority)

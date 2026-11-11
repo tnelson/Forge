@@ -47,6 +47,31 @@ jobs:
 
         echo "All test directories are covered by CI."
 
+  # Check forge/info.rkt's declared dependencies. If there is an undeclared dependency, 
+  # the build fails. Also, report declared but unused dependencies for informational purposes.
+  check-pkg-deps:
+    runs-on: ubuntu-latest
+    name: check-pkg-deps
+    steps:
+    - name: Checkout repo
+      uses: actions/checkout@v4
+
+    - name: Setup Racket
+      uses: Bogdanp/setup-racket@v1.14
+      with:
+        version: '9.3'
+
+    - name: Install Forge
+      run: raco pkg install --auto --no-docs ./forge
+
+    - name: Check declared package dependencies
+      run: raco setup --check-pkg-deps --no-docs --pkgs forge
+
+    - name: Report unused package dependencies (advisory)
+      continue-on-error: true
+      run: raco setup --check-pkg-deps --unused-pkg-deps --no-docs --pkgs forge
+
+  # Run Forge's test suite.
   test-forge:
     needs: check-test-coverage
     runs-on: ubuntu-latest
@@ -57,7 +82,7 @@ jobs:
           - name: forge-1
             test-dir: tests/forge/other
           - name: forge-2
-            test-dir: tests/forge/bounds tests/forge/domains tests/forge/eval-model tests/forge/examples tests/forge/expressions tests/forge/formulas tests/forge/fuzz tests/forge/ints tests/forge/library tests/forge/relations tests/forge/sigs tests/forge/target
+            test-dir: tests/forge/bounds tests/forge/domains tests/forge/eval-model tests/forge/examples tests/forge/expressions tests/forge/formulas tests/forge/ints tests/forge/library tests/forge/relations tests/forge/sigs tests/forge/target
           - name: forge-core
             test-dir: tests/forge-core tests/forge-functional
           - name: smt
@@ -72,7 +97,7 @@ jobs:
     - name: Setup Racket
       uses: Bogdanp/setup-racket@v1.14
       with:
-        version: '8.15'
+        version: '9.3'
 
     - name: Setup Java
       uses: actions/setup-java@v4

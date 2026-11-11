@@ -4,6 +4,7 @@
 option solver MiniSatProver
 option core_minimization rce
 option logtranslation 2
+option run_sterling off
 option coregranularity 2
 
 /*
@@ -164,41 +165,9 @@ pred safeArraySize[arr: IntArray] {
 -- regardless of what B is. 
 ---------------------------------------------------------------------------------------------
 
-test expect {
-    -- Check that it's possible to narrow on the first transition (this is the common case)
-    narrowFirstPossible: {
-        some s1,s2: SearchState | { 
-            init[s1]
-            safeArraySize[s1.arr]        
-            stepNarrow[s1, s2]
-        }
-    } for exactly 1 IntArray, exactly 2 SearchState 
-    is sat
-
-    -- Check that we can succeed immediately (likely because the target is in the middle exactly)
-    doneSucceedFirstPossible: {
-        some s1,s2: SearchState | { 
-            init[s1]
-            safeArraySize[s1.arr]        
-            stepSucceed[s1, s2]
-        }
-    } for exactly 1 IntArray, exactly 2 SearchState
-    is sat
-}
-
----------------------------------------------------------------------------------------------
--- Some assertions: these check that counterexamples don't exist, meaning they _cannot_ check 
--- for consistency as the tests above do.
----------------------------------------------------------------------------------------------
-
 pred unsafeOrNotInit[s: SearchState] { 
     not init[s] or not safeArraySize[s.arr]
 }
--- Check: Since we start with high >= low, the failure condition can't be reached in first state
---   unless the array is unsafe. 
-assert all s1, s2: SearchState | stepFailed[s1, s2] is sufficient for unsafeOrNotInit[s1]
-  for exactly 1 IntArray, exactly 2 SearchState
-
 -- The central invariant of binary search: 
 --   If the target is present, it's located between low and high
 pred bsearchInvariant[s: SearchState] {
@@ -232,25 +201,21 @@ pred bsearchInvariant[s: SearchState] {
     validArray[s.arr]
 }
 
-----------------------------------------------------------------------------
--- Inductively verify that binary search preserves the (enriched) invariant.
---   Step 1: Initiation: check that init states must satisfy the invariant. 
---   Step 2: Consecution: legal transitions preserve the invariant.
-----------------------------------------------------------------------------
 
--- Step 1
 pred safeSizeInit[s: SearchState] {  init[s] and safeArraySize[s.arr] }
-assert all s: SearchState | safeSizeInit[s] is sufficient for bsearchInvariant[s]
-  for exactly 1 IntArray, exactly 1 SearchState
-
--- Step 2
 pred stepFromGoodState[s1, s2: SearchState] {
     bsearchInvariant[s1]
     anyTransition[s1,s2]
 }
-assert all s1, s2: SearchState | stepFromGoodState[s1,s2] is sufficient for bsearchInvariant[s2]
-  for exactly 1 IntArray, exactly 2 SearchState
 
--- These pass (but only after we add the enrichment). 
--- To see an example, uncomment the run below.
+failedRun: run {
+    some s1, s2: SearchState | stepFailed[s1, s2] and not unsafeOrNotInit[s1]
+} for exactly 1 IntArray, exactly 2 SearchState
 
+initiationRun: run {
+    some s: SearchState | safeSizeInit[s] and not bsearchInvariant[s]
+} for exactly 1 IntArray, exactly 1 SearchState
+
+consecutionRun: run {
+    some s1, s2: SearchState | stepFromGoodState[s1, s2] and not bsearchInvariant[s2]
+} for exactly 1 IntArray, exactly 2 SearchState

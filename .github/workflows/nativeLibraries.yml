@@ -1,0 +1,146 @@
+name: Native Libraries
+
+on:
+  pull_request:
+    paths:
+    - 'forge/pardinus-cli/**'
+    - 'forge/shared.rkt'
+    - 'forge/tests/forge/other/test_native_solvers_*'
+    - '.github/workflows/nativeLibraries.yml'
+  push:
+    branches:
+    - main
+    - dev
+    paths:
+    - 'forge/pardinus-cli/**'
+    - 'forge/shared.rkt'
+    - 'forge/tests/forge/other/test_native_solvers_*'
+    - '.github/workflows/nativeLibraries.yml'
+  workflow_dispatch: ~
+
+jobs:
+  test-native:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: linux-x86_64
+            runner: ubuntu-24.04
+            dir: linux-x86_64
+            racket-arch: x64
+            racket-version: '9.3'
+          - name: linux-aarch64
+            runner: ubuntu-24.04-arm
+            dir: linux-aarch64
+            racket-arch: arm64
+            racket-version: '9.3'
+          - name: macos-arm64
+            runner: macos-15
+            dir: macos
+            racket-arch: arm64
+            racket-version: '9.3'
+          - name: macos-x86_64
+            runner: macos-15-intel
+            dir: macos
+            racket-arch: x64
+            racket-version: '9.3'
+          - name: windows-x86_64
+            runner: windows-latest
+            dir: windows-x86_64
+            racket-arch: x64
+            racket-version: '9.3'
+          - name: windows-arm64
+            runner: windows-11-arm
+            dir: windows-arm64
+            racket-arch: arm64
+            racket-version: '9.3'
+            # ARM Windows doesn't have Java 17
+            java: '21'
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 60
+    name: native-${{ matrix.name }}
+    steps:
+    - name: Checkout repo
+      uses: actions/checkout@v4
+
+    - name: Setup Java
+      uses: actions/setup-java@v4
+      with:
+        distribution: 'temurin'
+        java-version: ${{ matrix.java || '17' }}
+
+    # Fast check that libraries load. 
+    - name: Test native solver libraries
+      shell: bash
+      run: |
+        chmod +x forge/pardinus-cli/jar/native/test-native.sh
+        forge/pardinus-cli/jar/native/test-native.sh --dir "${{ matrix.dir }}"
+
+    # Slower check that includes Forge's native module resolution.
+    - name: Setup Racket
+      # (Temporary?) mitigation: MacOS x86_64 runner can stall.
+      timeout-minutes: 15
+      uses: Bogdanp/setup-racket@v1.14
+      with:
+        version: ${{ matrix.racket-version }}
+        architecture: ${{ matrix.racket-arch }}
+
+    # Diagnostics
+    - name: Debug Racket on PATH (windows-arm64 only)
+      if: matrix.name == 'windows-arm64'
+      shell: bash
+      run: |
+        set +e
+        echo "--- Racket entries on PATH:"
+        echo "$PATH" | tr ':' '\n' | grep -i racket || echo "(none)"
+        echo "--- install directory:"
+        ls -la "/c/Program Files/Racket" | head -20
+        echo "--- command -v racket:"
+        command -v racket || echo "(not found)"
+        echo "--- from cmd:"
+        cmd //c "where racket"
+        exit 0
+
+    - name: Record Racket version
+      shell: bash
+      run: racket --version > .racket-version
+
+    - name: Cache Racket packages
+      uses: actions/cache@v4
+      with:
+        path: |
+          ~/.cache/racket
+          ~/.local/share/racket
+          ~/Library/Racket
+          ~/Library/Caches/Racket
+          ~/AppData/Roaming/Racket
+          ~/AppData/Local/Racket
+        key: racket-${{ runner.os }}-${{ matrix.racket-arch }}-${{ hashFiles('.racket-version') }}-${{ hashFiles('forge/info.rkt') }}
+        restore-keys: racket-${{ runner.os }}-${{ matrix.racket-arch }}-${{ hashFiles('.racket-version') }}-
+
+    - name: Install system dependencies
+      if: runner.os == 'Linux'
+      run: |
+        sudo apt-get update -qq
+        sudo apt-get install -y -qq libcairo2-dev libpango1.0-dev libgdk-pixbuf-2.0-dev
+
+    - name: Install Forge
+      shell: bash
+      run: |
+        raco pkg update --auto --no-docs --batch ./forge 2>/dev/null || raco pkg install --auto --no-docs ./forge
+
+    - name: Run native solver tests through Forge
+      shell: bash
+      run: |
+        for solver in glucose; do
+          echo "== test_native_solvers_${solver}.frg"
+          if ! out="$(racket forge/tests/forge/other/test_native_solvers_${solver}.frg -O run_sterling off -O verbose 5 2>&1)"; then
+            echo "$out" | grep -v "Subprocess invocation information"
+            exit 1
+          fi
+          echo "$out" | grep -E "Native libraries:|Test passed|Test failed"
+          if ! echo "$out" | grep -F "directory=${{ matrix.dir }} (found)" > /dev/null; then
+            echo "Forge did not use the expected native directory: ${{ matrix.dir }}"
+            exit 1
+          fi
+        done

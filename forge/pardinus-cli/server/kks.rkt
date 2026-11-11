@@ -2,8 +2,6 @@
 
 (require (only-in racket/syntax format-symbol))
 
-;(provide (except-out (all-defined-out) kodkod-port define-ops))
-
 (require forge/shared)
 (require racket/class racket/match)
 (require forge/pardinus-cli/server/pardinus-server
@@ -19,7 +17,7 @@
 
 (define server-name "Pardinus")
 
-(provide start-server) ; stdin stdout)
+(provide start-server) 
 (define (start-server [solver-type 'stepper] [solver-subtype 'default] [java-exe #f])
   (when (>= (get-verbosity) VERBOSITY_HIGH)
     (printf "Starting ~a server.~n" server-name))
@@ -211,6 +209,7 @@
            (== ':name) solver-run-name)
      (list 'no-more-instances solver-run-name #f '())]
     [(== eof)
+     ; *** FLUSH ERROR OUTPUT FROM WORKER PROCESS ***
      (port-echo err-port (current-error-port) #:title server-name)
      (error (format "~a CLI shut down unexpectedly while running!" server-name))]
     [other (error 'read-solution "Unrecognized solver output: ~a" other)]))
@@ -233,6 +232,7 @@
     [(list (== 'unsat))
      (error "Current engine ran out of instances; evaluator is untrustworthy.")]
     [(== eof)
+     ; *** FLUSH ERROR OUTPUT FROM WORKER PROCESS ***
      (port-echo err-port (current-error-port) #:title server-name)
      (error (format "~a CLI shut down unexpectedly while evaluating!" server-name))]))
 
@@ -250,8 +250,11 @@
      (read-ack port err-port)]
     [(list (== 'ack) id)     
      id]    
-    [(== eof)     
+    [(== eof)
+     ; *** FLUSH ERROR OUTPUT FROM WORKER PROCESS ***
+     (port-echo err-port (current-error-port) #:title server-name)
      (error (format "~a CLI shut down unexpectedly while sending problem definition!" server-name))]
     [else
+     ; *** FLUSH ERROR OUTPUT FROM WORKER PROCESS ***
      (port-echo err-port (current-error-port) #:title server-name)
      (error (format "Bad syntax in response from solver: ~a" result))]))
