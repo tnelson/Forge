@@ -696,6 +696,21 @@ Please declare a sufficient scope for ~a."
     ;(printf "filling bounds at ~a; upper = ~a; lower = ~a~n" root upper-bounds lower-bounds)
     (set! sig-atoms (append sig-atoms (hash-ref upper-bounds root))))
 
+  ; Ensure that top-level sigs are disjoint. Throw an error if user-provided bounds (or a bug) 
+  ; have broken this invariant. 
+  (define atom-owner : (HashTable FAtom Sig) (make-hash))
+  (for* ([root (get-top-level-sigs run-spec)]
+         #:unless (equal? (Sig-name root) 'Int)
+         [a (hash-ref upper-bounds root)])
+    (define other (hash-ref atom-owner a #f))
+    (when other
+      (raise-run-error
+       (format "Top-level sigs must be disjoint, but the given bounds allow ~a and ~a to share atom `~a. Use different atom names, if possible."
+               (Sig-name other) (Sig-name root) a)
+       run-command
+       (get-blame-node run-spec root)))
+    (hash-set! atom-owner a root))
+
   ; Set the bounds for the Int built-in sig
   (: int-atoms (Listof FAtom))
   (define int-atoms

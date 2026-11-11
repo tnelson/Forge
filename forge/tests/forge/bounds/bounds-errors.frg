@@ -138,7 +138,7 @@ sig Dog extends Animal {}
 sig Cat extends Animal {}
 sig Sibling1 extends Parent {}
 sig Sibling2 extends Parent {}
-sig LinkedNode {next: one Node}
+sig LinkedNode {next: one LinkedNode}
 
 test expect multiplicityViolations {
   one_sig_multiple: {some OneNode} for {
@@ -161,14 +161,12 @@ test expect multiplicityViolations {
     Sibling2 = `A
   } is unsat
 
-  field_one_too_many: {some Node} for {
-    Node = `A + `B
+  field_one_too_many: {some LinkedNode} for {
     LinkedNode = `A + `B
     next = `A -> `B + `A -> `A
   } is unsat
 
-  field_one_missing: {some Node} for {
-    Node = `A + `B
+  field_one_missing: {some LinkedNode} for {
     LinkedNode = `A + `B
     next = `A -> `B
   } is unsat
