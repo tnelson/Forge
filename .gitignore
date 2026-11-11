@@ -43,3 +43,15 @@ forge/e2e/test-results/
 
 # Local agent state
 **/.claude
+# Ephemeral agent-generated files
+.bash_profile
+.bashrc
+.gitconfig
+.gitmodules
+.idea
+.mcp.json
+.profile
+.ripgreprc
+.vscode
+.zprofile
+.zshrc

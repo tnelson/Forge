@@ -11,7 +11,8 @@ fi
 
 # Compile Forge, for test speed
 echo "Re-running Forge setup for test efficiency."
-raco setup forge
+# If the setup fails, report a failure.
+raco setup forge || { echo "Setup failed; aborted test run."; exit 1; }
 
 # Get test files
 testDir=$1
@@ -25,6 +26,12 @@ smtTestPattern=".*/smtlibtor/.*"
 
 # This will create a newline-separated list of file names. But note comments on `for` below.
 testFiles="$( find $testDir -type f \( -name "*.rkt" -o -name "*.frg" \) | grep --invert-match ${doNotTestPattern} )"
+
+# If there is no such folder or the folder is empty, abort. 
+if [ -z "$testFiles" ]; then
+    echo "No test files found in: $testDir"
+    exit 1
+fi
 numTestFiles="$(echo "$testFiles" | wc -l)"
 
 # Helper variables
@@ -64,13 +71,24 @@ for testFile in $testFiles; do
         echo " " 
     fi
 
+    # Reset the exit code for each file. 
+    testExitCode=0
+
     # Only run SMT tests if cvc5 is on the path.
     if [[ $cvc5OnPathES != 0 && $matchedSMT -eq 0 ]]; then
         echo "Skipping SMT backend test because cvc5 is not on the PATH: $testFile"
     else
         #start=`date +%s` 
+        
         # Use permanent (-O) option flag to always disable Sterling   
-        racket $testFile -O run_sterling \'off > /dev/null
+        # We saw that running `racket` rather than `raco test` could sometimes exit 0 when a 
+        # Rackunit test failed. So we split execution between Racket files and Forge files. 
+        if [[ $testFile == *.rkt ]]; then
+            # If there is a `test` or `main` module, run them. (++arg adds an argument to the program under test.)
+            testOutput="$(raco test -s test -s main ++arg -O ++arg run_sterling ++arg \'off "$testFile" 2>&1)"
+        else
+            testOutput="$(racket "$testFile" -O run_sterling \'off 2>&1)"
+        fi
         #end=`date +%s`
         #echo -e "Testfile took $((end-start)) seconds."
         testExitCode=$?
@@ -78,6 +96,8 @@ for testFile in $testFiles; do
 
     if [[ $testExitCode -ne 0 ]]; then
         echo "Test failed with code $testExitCode"
+        # When a failing test produces output, print it.
+        echo "$testOutput"
         exitCode=1
     fi
 done  
