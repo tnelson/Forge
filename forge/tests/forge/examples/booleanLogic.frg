@@ -117,7 +117,7 @@ test expect fancyBoundsExpectBlockName {
         oright = `Or0->`Var0
         aleft = `And0->`Var0
         aright = `And0->`Var0
-    } is unsat
+    } is forge_error "Sibling sigs must be disjoint"
 
     initialFancyBoundsWithWrongCount: { #Formula != 5 }
     for 5 Formula

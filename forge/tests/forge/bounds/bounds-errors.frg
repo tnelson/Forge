@@ -159,7 +159,7 @@ test expect multiplicityViolations {
     Parent = `A + `B
     Sibling1 = `A
     Sibling2 = `A
-  } is unsat
+  } is forge_error "Sibling sigs must be disjoint"
 
   field_one_too_many: {some LinkedNode} for {
     LinkedNode = `A + `B

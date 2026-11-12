@@ -711,6 +711,22 @@ Please declare a sufficient scope for ~a."
        (get-blame-node run-spec root)))
     (hash-set! atom-owner a root))
 
+  ; Sibling sigs must likewise be disjoint. Upper bounds shared are sometimes (often!) necessary
+  ; but shared _lower_ bounds should produce an error. 
+  (for ([parent (get-sigs run-spec)]
+        #:unless (equal? (Sig-name parent) 'Int))
+    (define sibling-owner : (HashTable FAtom Sig) (make-hash))
+    (for* ([child (get-children run-spec parent)]
+           [a (ann (hash-ref lower-bounds child) (Listof FAtom))])
+      (define other (hash-ref sibling-owner a #f))
+      (when other
+        (raise-run-error
+         (format "Sibling sigs must be disjoint, but the given bounds require ~a and ~a to share atom `~a."
+                 (Sig-name other) (Sig-name child) a)
+         run-command
+         (get-blame-node run-spec child)))
+      (hash-set! sibling-owner a child)))
+
   ; Set the bounds for the Int built-in sig
   (: int-atoms (Listof FAtom))
   (define int-atoms
