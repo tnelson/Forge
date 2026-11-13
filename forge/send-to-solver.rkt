@@ -786,8 +786,10 @@ Please declare a sufficient scope for ~a."
              ; Override generated upper bounds for #:one sigs, unless they extend Int
              ; (In this case, we cannot generate an arbitrary atom for them, since Int atoms
              ;  have semantic value -- i.e., they are not isomorphic.)
+             ; Moreover, if the user gave an upper bound (e.g., `A in `X + `Y`), add size 
+             ; constraints that enforce only one of those atoms is used as the constant.
              [upper
-              (cond [(and (Sig-one sig) (not (member sig int-extenders)))
+              (cond [(and (Sig-one sig) (not (member sig int-extenders)) (not (get-bound-upper sig)))
                      lower]
                     [else
                      (map (inst list FAtom) (hash-ref upper-bounds sig))])])
@@ -1004,6 +1006,14 @@ Please declare a sufficient scope for ~a."
 
       ; Sub-optimal, because it points to the sig definition
       (define info (nodeinfo (nodeinfo-loc (node-info sig)) 'checklangNoCheck #f))
+
+      ; Bounds that force more atoms than a provided (i.e., not default) scope are an error.  
+      (when (and int-upper (> bound-lower-size int-upper))
+        (raise-run-error
+         (format "Sig ~a must contain at least ~a atoms, but its scope allows at most ~a."
+                 (Sig-name sig) bound-lower-size int-upper)
+         run-command
+         (get-blame-node run-spec sig)))
 
       ; Do we need to enforce numeric scope by means other than bounds?
       ; (This can sometimes happen when a sig extends another and there is ambiguity

@@ -17,6 +17,6 @@ test expect siblingDisjoint {
 
   // Overlapping _upper_ bounds are OK.
   upper_overlap_unsat: { some C & D } for { P = `X + `Y + `Z + `W  OneA = `Y  OneB = `Z  C in `X + `W  D in `X + `W } is unsat
-  upper_overlap_sat:   { `X in C  some D } for { P = `X + `Y + `Z + `W  OneA = `Y  OneB = `Z  C in `X + `W  D in `X + `W } is sat
+  upper_overlap_sat:   { one C and one D } for { P = `X + `Y + `Z + `W  OneA = `Y  OneB = `Z  C in `X + `W  D in `X + `W } is sat
   distinct_ok:         { some C and some D } for { P = `X + `Y + `Z + `W  OneA = `Y  OneB = `Z  C = `X  D = `W } is sat
 }

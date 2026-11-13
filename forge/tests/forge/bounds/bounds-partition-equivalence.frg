@@ -188,7 +188,7 @@ test expect Equiv_Scenario6 {
 
     -- Over-requesting: ask for more children than parent allows
     s6_exact_over: { #UA6 = 3 and #UB6 = 3 }
-        for exactly 4 U6, exactly 3 UA6, exactly 3 UB6 is unsat
+        for exactly 4 U6, exactly 3 UA6, exactly 3 UB6 is forge_error "Sig U6 must contain at least 6 atoms"
 
     s6_nonexact_over: { #UA6 = 3 and #UB6 = 3 }
         for 4 U6, 3 UA6, 3 UB6 is unsat

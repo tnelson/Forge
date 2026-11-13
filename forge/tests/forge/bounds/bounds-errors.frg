@@ -143,11 +143,11 @@ sig LinkedNode {next: one LinkedNode}
 test expect multiplicityViolations {
   one_sig_multiple: {some OneNode} for {
     OneNode = `A + `B
-  } is unsat
+  } is forge_error "Sig OneNode must contain at least 2 atoms"
 
   lone_sig_multiple: {some LoneNode} for {
     LoneNode = `A + `B
-  } is unsat
+  } is forge_error "Sig LoneNode must contain at least 2 atoms"
 
   abstract_uncovered_atom: {some Animal} for {
     Animal = `A + `B + `C
