@@ -1353,8 +1353,10 @@
       (raise-user-error (format "[~a] ~a" (pretty-loc context) msg))
       (fprintf (current-error-port) "[~a] ~a" (pretty-loc context) msg)))
 
+; Unlike an error, warnings are silenced if verbosity is 0. 
 (define (raise-forge-warning #:msg [msg "warning"] #:context [context #f])
-  (fprintf (current-error-port) "Warning: [~a] ~a~n" (pretty-loc context) msg))
+  (when (>= (get-verbosity) VERBOSITY_LOW)
+    (fprintf (current-error-port) "Warning: [~a] ~a~n" (pretty-loc context) msg)))
 
 ; Helper for other locations we might need to generate a nodeinfo struct from a variety
 ; of datatype possibilities.

@@ -5,6 +5,8 @@
 ;; subsets of parent upper bounds when partition is feasible, and that
 ;; partition is correctly skipped when infeasible.
 
+;; This test file was generated with the assistance of Claude Opus.
+
 (require (prefix-in @ rackunit))
 (set-option! 'verbose 0)
 
@@ -384,6 +386,8 @@
 (define t12b-upper (upper-atoms t12-run T12B))
 
 (@check-equal? (length t12p-upper) 6 "T12: Parent upper = 6")
+
+;; T12B's 4 comes from Alloy's difference rule (6 - 2), not the default.
 (@check-equal? (length t12a-upper) 2 "T12: A upper = 2 (explicit)")
 (@check-equal? (length t12b-upper) 4 "T12: B upper = 4 (implicit default)")
 (@check-true (subset-of? t12a-upper t12p-upper) "T12: A ⊆ Parent")
@@ -509,6 +513,7 @@
 (sig T17LeafB #:extends T17Mid)
 (sig T17Other #:extends T17Root)
 
+;; T17Mid's scope 4 comes from abstract-sum (2 + 2), not the default.
 (run t17-run #:preds []
      #:scope ([T17Root 6] [T17LeafA 2] [T17LeafB 2] [T17Other 2]))
      ;; NOTE: no T17Mid in scope → defaults to 4
@@ -642,9 +647,15 @@
 (define t21other-upper (upper-atoms t21-run T21Other))
 
 (@check-equal? (length t21root-upper) 8 "T21: Root upper = 8")
-(@check-equal? (length t21mid-upper) 4 "T21: Mid upper = 4 (default, partitioned from root)")
-(@check-equal? (length t21other-upper) 2 "T21: Other upper = 2 (partitioned from root)")
-(@check-true (disjoint? t21mid-upper t21other-upper) "T21: Mid and Other disjoint (root partitioned)")
+;; Lower limits are required for correctness: an upper bound must hold every instance the
+;; scopes allow. Upper limits are tightness (optimization) goals. Alloy's difference rule gives
+;; T21Mid 8 - 2 = 6; abstract-sum does not apply because its leaves have no scope. (The header
+;; above describes the earlier per-child default.)
+(@check-true (>= (length t21mid-upper) 6) "T21: Mid upper >= 6 (difference rule: 8 - 2)")
+(@check-true (>= (length t21other-upper) 2) "T21: Other upper >= 2 (scope)")
+(@check-true (<= (length t21mid-upper) 6) "T21: Mid upper <= 6 (tightness: root partition)")
+(@check-true (<= (length t21other-upper) 2) "T21: Other upper <= 2 (tightness: root partition)")
+(@check-true (disjoint? t21mid-upper t21other-upper) "T21: Mid and Other disjoint (tightness: root partition)")
 ;; Mid level: leaves each default to 4, total=8 > 4 → partition skipped
 (@check-equal? (sort t21la-upper symbol<?) (sort t21lb-upper symbol<?)
                "T21: LeafA and LeafB identical (no partition at mid)")
@@ -768,12 +779,16 @@
 (define t25c-upper (upper-atoms t25-run T25C))
 
 (@check-equal? (length t25p-upper) 10 "T25: Parent upper = 10")
-(@check-equal? (length t25a-upper) 2 "T25: A upper = 2 (explicit)")
-(@check-equal? (length t25b-upper) 4 "T25: B upper = 4 (default, partitioned)")
-(@check-equal? (length t25c-upper) 4 "T25: C upper = 4 (default, partitioned)")
-(@check-true (disjoint? t25a-upper t25b-upper) "T25: A and B disjoint")
-(@check-true (disjoint? t25a-upper t25c-upper) "T25: A and C disjoint")
-(@check-true (disjoint? t25b-upper t25c-upper) "T25: B and C disjoint")
+
+;; Lower limits are required for correctness: an upper bound must hold every instance the
+;; scopes allow. T25B and T25C have no scope, so each is limited only by the parent (Alloy's
+;; difference rule needs exactly one unscoped child). An instance with no A or C atoms may have 10
+;; B atoms, so B's and C's upper bounds must include A's atoms; their uppers cannot be disjoint
+;; from A's. Giving A an exclusive 2-atom slice would make A upper <= 2 (an optimization not
+;; implemented). (The header above describes the earlier per-child default.)
+(@check-true (>= (length t25a-upper) 2) "T25: A upper >= 2 (scope)")
+(@check-true (>= (length t25b-upper) 10) "T25: B upper >= 10 (limited only by parent)")
+(@check-true (>= (length t25c-upper) 10) "T25: C upper >= 10 (limited only by parent)")
 (@check-true (subset-of? t25a-upper t25p-upper) "T25: A ⊆ Parent")
 (@check-true (subset-of? t25b-upper t25p-upper) "T25: B ⊆ Parent")
 (@check-true (subset-of? t25c-upper t25p-upper) "T25: C ⊆ Parent")
@@ -1308,4 +1323,37 @@
 
 (forge:close-run t40-run)
 
-(printf "All bounds inspection tests passed.~n")
+;; ================================================================
+;; Test 41: Abstract-sum, recursive. Abstract sigs without a scope whose children all
+;; have scopes get exactly the sum of their children's max scopes.
+;; Root (abstract, no scope) ⊃ Mid (abstract, no scope) ⊃ LeafA=2, LeafB=1; Root ⊃ Other=2.
+;; Mid = 2 + 1 = 3; Root = 3 + 2 = 5. Without the rule, Root would get the default (4).
+;;
+;; Root is declared before Mid on purpose: Root's sum needs Mid's, so deriving Root requires
+;; repeating the derivation, not a single pass in declaration order.
+;; ================================================================
+(sig T41Root #:abstract)
+(sig T41Mid #:abstract #:extends T41Root)
+(sig T41LeafA #:extends T41Mid)
+(sig T41LeafB #:extends T41Mid)
+(sig T41Other #:extends T41Root)
+
+(run t41-run #:preds []
+     #:scope ([T41LeafA 2] [T41LeafB 1] [T41Other 2]))
+
+(define t41root-upper (upper-atoms t41-run T41Root))
+(define t41mid-upper (upper-atoms t41-run T41Mid))
+(define t41la-upper (upper-atoms t41-run T41LeafA))
+(define t41lb-upper (upper-atoms t41-run T41LeafB))
+(define t41other-upper (upper-atoms t41-run T41Other))
+
+(@check-equal? (length t41root-upper) 5 "T41: Root upper = 5 (derived: 3 + 2)")
+(@check-equal? (length t41mid-upper) 3 "T41: Mid upper = 3 (derived: 2 + 1)")
+(@check-equal? (length t41la-upper) 2 "T41: LeafA upper = 2")
+(@check-equal? (length t41lb-upper) 1 "T41: LeafB upper = 1")
+(@check-equal? (length t41other-upper) 2 "T41: Other upper = 2")
+(@check-true (disjoint? t41mid-upper t41other-upper) "T41: Mid and Other disjoint (partitioned)")
+(@check-true (disjoint? t41la-upper t41lb-upper) "T41: LeafA and LeafB disjoint (partitioned)")
+
+(forge:close-run t41-run)
+

@@ -12,6 +12,7 @@
 
 (require racket/contract)
 (require racket/match)
+(require (only-in racket/string string-join))
 (require (prefix-in @ (only-in racket max min - display set +))
          (only-in racket/function thunk)
          (only-in racket/math nonnegative-integer?)
@@ -463,6 +464,48 @@
   (struct-copy Scope base-scope
                [bitwidth bitwidth]))
 
+; Alloy's policy for abstract sigs without an explicit scope, when all of its children 
+; have one. Proceeds recursively, deriving child scopes as needed/possible.  
+(define (derive-abstract-scopes scope sigs)
+  (define (max-scope-of sc a-sig)
+    (define r (hash-ref (Scope-sig-scopes sc) (Sig-name a-sig) #f))
+    (and r (Range-upper r)))
+  (define (children-of a-sig)
+    (filter (lambda (c) (equal? (Sig-extends c) a-sig)) sigs))
+  (define (set-max sc a-sig n)
+    (struct-copy Scope sc
+                 [sig-scopes (hash-set (Scope-sig-scopes sc) (Sig-name a-sig) (Range 0 n))]))
+  (define next
+    (for/fold ([sc scope])
+              ([a-sig sigs]
+               #:when (and (Sig-abstract a-sig)
+                           (not (null? (children-of a-sig)))))
+      (define kids (children-of a-sig))
+      (define parent-max (max-scope-of sc a-sig))
+      (define unscoped-kids (filter (lambda (c) (not (max-scope-of sc c))) kids))
+      (define scoped-total (apply @+ (filter values (map (lambda (c) (max-scope-of sc c)) kids))))
+      (cond [(and (not parent-max) (null? unscoped-kids))
+             (set-max sc a-sig scoped-total)]
+            ; An abstract sig with an explicit scope, and exactly one unscoped child, 
+            ; "gives" that child its max minus its siblings'.
+            [(and parent-max (pair? unscoped-kids) (null? (cdr unscoped-kids)))
+             (set-max sc (car unscoped-kids) (@max 0 (@- parent-max scoped-total)))]
+            [else sc])))
+  (if (equal? next scope)
+      scope
+      (derive-abstract-scopes next sigs)))
+
+; The first value is the maximum scope for a sig without its own declared.
+; The second value is #t iff the default comes from a plain `for N` without `but`. 
+(define (inherited-max-scope scope sig)
+  (define parent (and (Sig? sig) (Sig-extends sig)))
+  (define parent-scope (and parent (hash-ref (Scope-sig-scopes scope) (Sig-name parent) #f)))
+  (cond [(and parent-scope (Range-upper parent-scope))
+         (values (Range-upper parent-scope) #f)]
+        [parent (inherited-max-scope scope parent)]
+        [else (values (Range-upper (get-scope scope (string->symbol (relation-name sig))))
+                      (and (Scope-default-scope scope) #t))]))
+
 ; update-scope :: Scope, node/expr/relation, Range, (U node syntax) -> Scope
 ; Updates the numeric Scope (min and max size) for a given sig, combining the new (given) 
 ; scope declaration with any prior declarations. If `given` contains a min-scope only, 
@@ -477,7 +520,15 @@
           [(Range-upper given) (Range-upper given)]
           ; An undeclared (default) max scope may be raised to fit the given min scope. This is consistent with 
           ; behavior around `one sig` children of a sig, where the parent's upper bound is invisibly raised. 
-          [else (@max (Range-upper (get-scope scope name)) (Range-lower given))]))
+          [else
+           (define-values (default-max from-bare-default?) (inherited-max-scope scope sig))
+           
+           (when (and from-bare-default? (< default-max (Range-lower given)))
+             (raise-forge-warning
+              #:msg (format "Sig ~a must contain at least ~a atoms, so Forge implicitly raised its scope from the default (`for ~a`) to ~a."
+                            name (Range-lower given) default-max (Range-lower given))
+              #:context context))
+           (@max default-max (Range-lower given))]))
   (when (< max-scope min-scope)
     (raise-forge-error
      #:msg (format (string-append "Bound conflict: numeric max scope on ~a was"
@@ -531,6 +582,7 @@
 (define (run-from-state state #:name [name 'unnamed-run]
                         #:preds [preds (list)]
                         #:scope [scope-input (list)]
+                        #:default-scope [default-scope-input #f]
                         #:bounds [bounds-input (make-inst (list))] 
                         #:solver [solver #f]
                         #:backend [backend #f]
@@ -541,6 +593,7 @@
         #:preds (listof node/formula)
         #:scope (or/c Scope? (listof (or/c (list/c Sig? nonnegative-integer?)
                                            (list/c Sig? nonnegative-integer? nonnegative-integer?))))
+        #:default-scope (or/c nonnegative-integer? #f)
         #:bounds (or/c Inst? (listof (or/c Inst? node/formula)))
         #:solver (or/c symbol? #f)
         #:backend (or/c symbol? #f)
@@ -548,11 +601,17 @@
         #:command syntax?)
        Run?)  
   
+  ; For sigs without a scope. If #f, just use DEFAULT-SIG-SCOPE. Otherwise, supports `for N`. 
+  (define default-range (and default-scope-input (Range 0 default-scope-input)))
+
   (define/contract base-scope Scope?
     (cond
-      [(Scope? scope-input) scope-input]
+      [(Scope? scope-input)
+       (if default-range
+           (struct-copy Scope scope-input [default-scope default-range])
+           scope-input)]
       [(list? scope-input)
-       (for/fold ([scope (Scope #f #f (hash))])
+       (for/fold ([scope (Scope default-range #f (hash))])
                  ([triple scope-input])
          (match triple
            [(list sig upper)
@@ -597,8 +656,34 @@
         (make-inst (flatten bounds-input))))
   
   ; Invoking the Inst func folds over all involved `inst` declarations to produce a final triplet.
-  (define-values (scope bounds) 
+  (define-values (scope-before-derivation bounds) 
     ((Inst-func wrapped-bounds-inst) scope-with-ones default-bounds))
+  (define scope (derive-abstract-scopes scope-before-derivation (get-sigs state)))
+
+  ; If a command gives scopes for some sigs, but fails to provide one for a top-level sig, 
+  ; Forge uses the default size for the top-level sig. Alloy would throw an error here, 
+  ; but for now Forge will produce a warning instead. 
+  (define command-scopes-sigs?
+    (and (list? scope-input)
+         (ormap (lambda (entry) (not (equal? (first entry) Int))) scope-input)))
+  (when (and command-scopes-sigs? (not default-scope-input))
+    (define defaulted-names
+      (for/list ([a-sig (get-sigs state)]
+                 #:unless (equal? a-sig Int)
+                 #:unless (Sig-extends a-sig)
+                 #:unless (hash-ref (Scope-sig-scopes scope) (Sig-name a-sig) #f)
+                 #:unless (let ([b (hash-ref (Bound-pbindings bounds) a-sig #f)])
+                            (and b (sbound-upper b))))
+        (Sig-name a-sig)))
+    (unless (null? defaulted-names)
+      (raise-forge-warning
+       #:msg (format (string-append "No scope was given for top-level sig(s) ~a, so the default (~a) is used. "
+                                    "When a command gives scopes, give every top-level sig a scope, e.g., `for ~a but ...`. "
+                                    "This will become an error in a future version.")
+                     (string-join (map symbol->string defaulted-names) ", ")
+                     (Range-upper DEFAULT-SIG-SCOPE)
+                     (Range-upper DEFAULT-SIG-SCOPE))
+       #:context command)))
 
   ; Piecewise bounds must be resolved. Along the way, confirm that if one relation is bound
   ; piecewise (incomplete), it cannot be bound complete. E.g., we cannot mix "`Alice.father = ..."

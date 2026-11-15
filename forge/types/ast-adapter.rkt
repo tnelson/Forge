@@ -80,7 +80,7 @@
         node/formula/op-children
         ;; Other exports
         relation-arity just-location-info quantified-formula multiplicity-formula empty-nodeinfo
-        join/func one/func build-box-join univ none raise-forge-error &&/func &/func ||/func +/func
+        join/func one/func build-box-join univ none raise-forge-error raise-forge-warning &&/func &/func ||/func +/func
         -/func =/func */func iden ^/func set/func relation-name always/func maybe-and->list
         int=/func int</func int/func card/func in/func true-formula false-formula no/func
         lone/func ->/func some/func !/func add/func sum/func sing/func var ite/func atom/func
@@ -194,6 +194,7 @@
   ; the #t and #f modes, even when they are provided as literals. 
   ;(->* (#:msg String #:context Any) (#:raise? Boolean) Void) ]
   [raise-forge-error (->* () (#:msg String #:context Any #:raise? Boolean) Nothing)] 
+  [raise-forge-warning (->* () (#:msg String #:context Any) Void)]
   [relation-arity (-> Any Integer)]
   [relation-name (-> node/expr/relation String)]
   [just-location-info (-> (U srcloc #f) nodeinfo)]

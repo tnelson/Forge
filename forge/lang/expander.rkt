@@ -384,7 +384,7 @@
     (pattern decl:ConsistencyDeclClass))
 
   (define-syntax-class PropertyDeclClass
-    #:attributes (tname prop pred-name constraint-type scope bounds)
+    #:attributes (tname prop pred-name constraint-type scope default-scope bounds)
     (pattern (
               (~datum NT-PropertyDecl)      
               (~optional -tname:NameClass)
@@ -398,10 +398,11 @@
       #:with pred-name #'-pred-name.name
       #:with constraint-type (string->symbol (syntax-e #'ct))
       #:with scope (if (attribute -scope) #'-scope.translate #'())
+      #:attr default-scope (and (attribute -scope) (attribute -scope.default-scope))
       #:with bounds (if (attribute -bounds) #'-bounds.translate #'())))
 
   (define-syntax-class QuantifiedPropertyDeclClass
-    #:attributes (tname quant-decls disj prop pred-name pred-exprs constraint-type scope bounds)
+    #:attributes (tname quant-decls disj prop pred-name pred-exprs constraint-type scope default-scope bounds)
     (pattern ((~datum NT-QuantifiedPropertyDecl)
               (~optional -tname:NameClass)
               (~optional (~and "disj" -disj))
@@ -420,10 +421,11 @@
       #:with pred-exprs  (if (attribute -pred-exprs) #'(-pred-exprs.exprs ...) #'()) 
       #:with constraint-type (string->symbol (syntax-e #'ct))
       #:with scope (if (attribute -scope) #'-scope.translate #'())
+      #:attr default-scope (and (attribute -scope) (attribute -scope.default-scope))
       #:with bounds (if (attribute -bounds) #'-bounds.translate #'())))
 
 (define-syntax-class SatisfiabilityDeclClass
-  #:attributes (tname prop expected scope bounds)
+  #:attributes (tname prop expected scope default-scope bounds)
   (pattern ((~datum NT-SatisfiabilityDecl)
             (~optional -tname:NameClass)
             -prop:ExprClass
@@ -434,11 +436,12 @@
     #:with prop #'-prop
     #:with expected (string->symbol (syntax-e #'ct))
     #:with scope (if (attribute -scope) #'-scope.translate #'())
+    #:attr default-scope (and (attribute -scope) (attribute -scope.default-scope))
     #:with bounds (if (attribute -bounds) #'-bounds.translate #'())))
 
 
 (define-syntax-class ConsistencyDeclClass
-  #:attributes (tname test-expr pred-name consistency expected scope bounds)
+  #:attributes (tname test-expr pred-name consistency expected scope default-scope bounds)
   (pattern ((~datum NT-ConsistencyDecl) 
             (~optional -tname:NameClass)     
             -test-expr:ExprClass
@@ -452,6 +455,7 @@
     #:with consistency (string->symbol (syntax-e #'ct)) ;; This is for good test naming
     #:with expected (if (equal? (syntax-e #'ct) "consistent") 'sat 'unsat)
     #:with scope (if (attribute -scope) #'-scope.translate #'())
+    #:attr default-scope (and (attribute -scope) (attribute -scope.default-scope))
     #:with bounds (if (attribute -bounds) #'-bounds.translate #'())))
 
   (define-syntax-class TestSuiteDeclClass
@@ -475,7 +479,9 @@
     (pattern ((~datum Scope)
               (~optional default:NumberClass)
               (~seq typescope:TypescopeClass ...))
-      #:attr translate #'(typescope.translate ...)))
+      #:attr translate #'(typescope.translate ...)
+      ; The default scope will be #f when no bare `for N` is given.
+      #:attr default-scope (and (attribute default) #'default.value)))
 
   ; Typescope : EXACTLY-TOK? Number QualName
   (define-syntax-class TypescopeClass
@@ -1116,6 +1122,7 @@
     #`(begin
        #,(syntax/loc stx (cmd-type name (~? (~@ #:preds [preds]))
                       (~? (~@ #:scope scope.translate))
+                      (~? (~@ #:default-scope scope.default-scope))
                       (~? (~@ #:bounds bounds.translate))
                       (~? (~@ #:target tomf.translate_tgt))
                       (~? (~@ #:target-distance tomf.translate_mode))))
@@ -1146,6 +1153,7 @@
      (syntax/loc stx
        (test name (~? (~@ #:preds [preds]))
                   (~? (~@ #:scope scope.translate))
+                  (~? (~@ #:default-scope scope.default-scope))
                   (~? (~@ #:bounds bounds.translate))
                   #:expect expected
                   (~? (~@ #:expect-details expected-details)))))]))
@@ -1179,6 +1187,7 @@
         test_name
         #:preds [imp_total]
         #:scope pwd.scope
+        (~? (~@ #:default-scope pwd.default-scope))
         #:bounds pwd.bounds
         #:expect checked ))]))
 
@@ -1208,6 +1217,7 @@
           test_name
          #:preds [imp_total]
          #:scope qpd.scope
+         (~? (~@ #:default-scope qpd.default-scope))
          #:bounds qpd.bounds
          #:expect checked )))]))
 
@@ -1223,6 +1233,7 @@
         test_name
         #:preds [sd.prop]
         #:scope sd.scope
+        (~? (~@ #:default-scope sd.default-scope))
         #:bounds sd.bounds
         #:expect sd.expected ))]))
 
@@ -1238,6 +1249,7 @@
         test_name
         #:preds [conj_total] 
         #:scope cd.scope
+        (~? (~@ #:default-scope cd.default-scope))
         #:bounds cd.bounds
         #:expect cd.expected ))]))
 

@@ -588,11 +588,13 @@
     (define child-needs : (Listof Integer)
       (for/list : (Listof Integer)
         ([child (in-list children)])
-        (@max 0 (@- (get-scope-upper-default child)
+        (@max 0 (@- (or (get-scope-upper child) 0)
                      (length (ann (hash-ref lower-bounds child) (Listof FAtom)))))))
     (define total-need : Integer
       (foldl (lambda ([n : Integer] [acc : Integer]) (@+ n acc)) 0 child-needs))
     (cond
+      ; A child without an explicit scope gets no slice; it may use any of its parent's atoms. 
+      [(ormap (lambda ([child : Sig]) (not (get-scope-upper child))) children) #f]
       [(> total-need (length shared)) #f]  ; children need more than available
       [(not (set-empty? (set-intersect inst-relation-atoms (list->set shared)))) #f]  ; relation inst conflict
       [else
@@ -622,14 +624,17 @@
     (define curr-lower (ann (hash-ref lower-bounds sig) (Listof FAtom)))
 
     ; Before doing anything else, confirm that if *no* scope was given for this sig,
-    ; that the declared scopes for its children, combined, are not bigger than the default. 
+    ; that the declared scopes for its children, combined, are not bigger than:
+    ;   for a top-level sig: the default; for other sigs: parent scope. 
     ; We allow a lower-bound to increase the default, but
     ; not a declared scope. This is consistent with Alloy, where many `one sig`s 
     ; can increase the default.
     (when (not (get-scope-upper sig))
+      ; A sig's candidate atoms are its curr-lower plus the atoms provided in shared 
+      ; (which come from ancestor sigs).  If there's no scope, the sig's upper bound 
+      ; just contains its candidates.      
       (define upper-budget
-        (@max (length curr-lower)
-              (get-scope-upper-default sig)))
+        (length (remove-duplicates (append curr-lower shared))))
       (define child-upper-declared-total
         (foldl (lambda ([curr : Sig] [acc : Integer])
                  (@+ acc (or (get-scope-upper curr) 0)))
@@ -647,7 +652,9 @@ Please declare a sufficient scope for ~a."
     ; If the upper-bound's scope is bigger than the lower bound's current contents
     ;   (which should include child sigs' lower bounds), make room using atoms from parent.
     ; Otherwise, upper = lower, since there is no excess capacity.
-    (if (> (get-scope-upper-default sig) (length curr-lower))
+    ; If a sig has no scope, it may use all of `shared`. 
+    (define declared-upper (get-scope-upper sig))
+    (if (or (not declared-upper) (> declared-upper (length curr-lower)))
         (hash-set! upper-bounds sig (append curr-lower shared))
         (hash-set! upper-bounds sig curr-lower))
     ; Recur on children, partitioning atoms when possible to avoid cardinality constraints.
@@ -685,6 +692,18 @@ Please declare a sufficient scope for ~a."
             (or (get-scope-upper root)
                 (@max lower-size
                       (get-scope-upper-default root))))
+          
+          ; Handle a `for N` by itself 
+          (define local-default (Scope-default-scope scopes))
+          (define local-default-upper (and local-default (Range-upper local-default)))
+
+          (when (and local-default-upper
+                     (not (get-scope-upper root))
+                     (> lower-size local-default-upper))
+            (raise-forge-warning
+             #:msg (format "Sig ~a must contain at least ~a atoms, so Forge implicitly raised its scope from the default (`for ~a`) to ~a."
+                           (Sig-name root) lower-size local-default-upper lower-size)
+             #:context run-command))
           ;(printf "no-rel-bound case for ~a. scope=~a; default-scope:~a~n"
           ;        root (get-scope-upper root) (get-scope-upper-default root))
 
@@ -860,6 +879,8 @@ Please declare a sufficient scope for ~a."
   (define pbindings (Bound-pbindings (Run-spec-bounds run-spec)))
   (: piecewise PiecewiseBounds)
   (define piecewise (Bound-piecewise (Run-spec-bounds run-spec)))
+  (: effective-default Range)
+  (define effective-default (or (Scope-default-scope (Run-spec-scope run-spec)) DEFAULT-SIG-SCOPE))
  
   (: get-bound-lower (-> node/expr/relation (U False (Setof Tuple))))
   (define (get-bound-lower rel)
@@ -923,7 +944,7 @@ Please declare a sufficient scope for ~a."
              (unless (subset? (list->set pw-domain) (list->set (first sig-atoms)))
                (define undeclared (set->list (set-subtract (list->set pw-domain) (list->set (first sig-atoms)))))
                (raise-run-error (format "Field ~a was bounded for atom(s): ~a, but the corresponding sig ~a contained only ~a. This might be caused by an inst or example not providing a value or bound for the sig; recall the default scope of ~a through ~a atoms will apply if no scope or bound is given."
-                                        (Relation-name relation) undeclared (first sigs) (first sig-atoms) (Range-lower DEFAULT-SIG-SCOPE) (Range-upper DEFAULT-SIG-SCOPE))
+                                        (Relation-name relation) undeclared (first sigs) (first sig-atoms) (Range-lower effective-default) (Range-upper effective-default))
                          run-command (get-blame-node run-spec relation)))
 
              ; TODO: that only helps with the domain, not the range

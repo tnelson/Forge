@@ -576,6 +576,10 @@
             (~optional (~or (~seq #:preds (preds ...))
                             (~seq #:preds pred)))
             (~optional (~seq #:scope ((sig:id (~optional lower:nat) upper:nat) ...)))
+            
+            ; `for N` 
+            (~optional (~seq #:default-scope default-scope:nat))
+            
             (~optional (~or (~seq #:bounds (boundss ...))
                             (~seq #:bounds bound)))
             
@@ -639,6 +643,7 @@
                            #:name run-name
                            #:preds preds-maybe-with-gadget
                            #:scope run-scope
+                           #:default-scope (~? default-scope #f)
                            #:bounds bounds-maybe-with-gadget
                            #:solver run-solver
                            #:backend run-backend
@@ -724,7 +729,8 @@
 
            ; Only report passing if error was caught/matched as expected
            (unless (or run-reference handler-failed)
-             (when (member 'name (hash-keys (State-runmap curr-state)))
+             (when (and (member 'name (hash-keys (State-runmap curr-state)))
+                        (>= (get-verbosity) VERBOSITY_LOW))
                (printf "Warning: successful `is forge_error` test run left in state environment: ~a.~n" 'name))
              (report-passing-test #:name 'name))]
 
@@ -877,12 +883,14 @@
             (~alt
              (~optional (~seq #:preds (pred ...)))
              (~optional (~seq #:scope ((sig:id (~optional lower:nat #:defaults ([lower #'0])) upper:nat) ...)))
+             (~optional (~seq #:default-scope default-scope:nat))
              (~optional (~seq #:bounds (bound ...)))) ...)
      (with-syntax* ([pred-conj (syntax/loc stx (&& (~? (~@ pred ...))))]
                     [neg-pred-conj (syntax/loc stx (! pred-conj))])
        (quasisyntax/loc stx
          (run name (~? (~@ #:preds [neg-pred-conj]))
               (~? (~@ #:scope ([sig lower upper] ...)))
+              (~? (~@ #:default-scope default-scope))
               (~? (~@ #:bounds (bound ...))))))]))
 
 
