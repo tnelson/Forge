@@ -624,11 +624,11 @@
     (define curr-lower (ann (hash-ref lower-bounds sig) (Listof FAtom)))
 
     ; Before doing anything else, confirm that if *no* scope was given for this sig,
-    ; that the declared scopes for its children, combined, are not bigger than:
-    ;   for a top-level sig: the default; for other sigs: parent scope. 
-    ; We allow a lower-bound to increase the default, but
-    ; not a declared scope. This is consistent with Alloy, where many `one sig`s 
-    ; can increase the default.
+    ; that the declared scopes for its children, combined, are not bigger than the 
+    ; number of available atoms:
+    ;   * for a top-level sig: the default raised to fit its lower bound (if needed); and 
+    ;   * for other sigs, the atoms passed down from the parent, plus its lower bound.
+    ; This is consistent with Alloy, where many `one sig`s can increase the default.
     (when (not (get-scope-upper sig))
       ; A sig's candidate atoms are its curr-lower plus the atoms provided in shared 
       ; (which come from ancestor sigs).  If there's no scope, the sig's upper bound 
