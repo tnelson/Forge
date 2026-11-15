@@ -8,6 +8,9 @@ option verbose 0
 
   Covers: sig bounds, field bounds, piecewise bounds, inheritance,
   multiplicity, and various error conditions.
+
+  This file was created with help from Claude Opus and possibly other agents. 
+  Agent-generated comments in this file need not be preceded by the agent name.
 */
 
 sig Node {edges: set Node}
@@ -52,6 +55,11 @@ test expect validPiecewise {
   } is sat
 
   piecewise_ni: {some Node} for {
+    Node = `A + `B + `C
+    `A.edges ni `B
+  } is sat
+
+  piecewise_ni_lower_only: {edges = Node -> Node} for {
     Node = `A + `B + `C
     `A.edges ni `B
   } is sat
@@ -187,4 +195,19 @@ test expect piecewiseErrors {
     Node = `A + `B
     `Z.edges = `A
   } is forge_error "was bounded for atom"
+
+  piecewise_in_range_not_in_sig: {some Node} for {
+    Node = `A + `B
+    `A.edges in `B + `Z
+  } is forge_error "`Z not in bounds for sig Node"
+
+  piecewise_eq_range_not_in_sig: {some Node} for {
+    Node = `A + `B
+    `A.edges = `Z
+  } is forge_error "`Z not in bounds for sig Node"
+
+  piecewise_ni_range_not_in_sig: {some Node} for {
+    Node = `A + `B
+    `A.edges ni `Z
+  } is forge_error "`Z not in bounds for sig Node"
 }

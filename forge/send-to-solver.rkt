@@ -947,8 +947,17 @@ Please declare a sufficient scope for ~a."
                                         (Relation-name relation) undeclared (first sigs) (first sig-atoms) (Range-lower effective-default) (Range-upper effective-default))
                          run-command (get-blame-node run-spec relation)))
 
-             ; TODO: that only helps with the domain, not the range
-             
+             ; Range check:
+             (define pw-dropped
+               (set->list (set-subtract (list->set (PiecewiseBound-tuples piecewise-bound-value))
+                                        (list->set (apply cartesian-product sig-atoms)))))
+             (unless (empty? pw-dropped)
+               (raise-run-error (format "For field ~a of ~a: ~a"
+                                        (Relation-name relation) (Sig-name (first sigs))
+                                        (bounds-error-detail pw-dropped sigs sig-atoms pbindings))
+                                run-command
+                                (get-blame-node run-spec relation)))
+
              (define in-domain (set-intersect (list->set (PiecewiseBound-tuples piecewise-bound-value))
                                               (list->set (apply cartesian-product sig-atoms))))
              ;(printf "upper; sig-atoms product was: ~a~n" (apply cartesian-product sig-atoms))
@@ -958,8 +967,12 @@ Please declare a sufficient scope for ~a."
                                     )
                                               (not (member (first tup) pw-domain)))
                                             (apply cartesian-product sig-atoms))))
-             ;(printf "upper; out-of-domain: ~a~n" out-of-domain)
-             (set->list (set-union in-domain out-of-domain))]
+             
+             ; Piecewise `ni` gives a lower bound.
+             (if (equal? (PiecewiseBound-operator piecewise-bound-value) 'ni)
+                 (apply cartesian-product sig-atoms)
+                 (set->list (set-union in-domain out-of-domain)))]
+
             [upper-bound-value
              ; complete upper bound exists; intersect with the cartesian product of universe
              ; restricted to the sig-sequence in relation's declaration

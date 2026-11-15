@@ -5,7 +5,8 @@
 ;; subsets of parent upper bounds when partition is feasible, and that
 ;; partition is correctly skipped when infeasible.
 
-;; This test file was generated with the assistance of Claude Opus.
+;; This file was created with help from Claude Opus and possibly other agents. 
+;; Agent-generated comments in this file need not be preceded by the agent name.
 
 (require (prefix-in @ rackunit))
 (set-option! 'verbose 0)
@@ -345,9 +346,9 @@
 (forge:close-run t10-run)
 
 ;; ================================================================
-;; Test 11: Parent has NO explicit scope (defaults to 4), children have explicit scopes
+;; Test 11: Parent has NO explicit scope, children have explicit scopes
 ;; This tests the common case where a user declares child scopes but forgets the parent.
-;; Parent defaults to 4. Children 2+2=4, exact fit → partition should fire.
+;; Abstract-sum gives the parent 2+2=4. Children 2+2=4, exact fit → partition should fire.
 ;; ================================================================
 (sig T11P #:abstract)
 (sig T11A #:extends T11P)
@@ -360,7 +361,7 @@
 (define t11a-upper (upper-atoms t11-run T11A))
 (define t11b-upper (upper-atoms t11-run T11B))
 
-(@check-equal? (length t11p-upper) 4 "T11: Parent upper = 4 (implicit default)")
+(@check-equal? (length t11p-upper) 4 "T11: Parent upper = 4 (abstract-sum: 2 + 2)")
 (@check-equal? (length t11a-upper) 2 "T11: A upper = 2 (partitioned)")
 (@check-equal? (length t11b-upper) 2 "T11: B upper = 2 (partitioned)")
 (@check-true (subset-of? t11a-upper t11p-upper) "T11: A ⊆ Parent")
@@ -370,8 +371,8 @@
 (forge:close-run t11-run)
 
 ;; ================================================================
-;; Test 12: Parent explicit scope, ONE child has no explicit scope (defaults to 4)
-;; Parent=6, ChildA=2, ChildB=no scope (defaults to 4). Total need=2+4=6 ≤ 6.
+;; Test 12: Parent explicit scope, ONE child has no explicit scope
+;; Parent=6, ChildA=2, ChildB=no scope: difference rule gives ChildB 6 - 2 = 4.
 ;; Partition should fire, giving ChildB 4 surplus atoms.
 ;; ================================================================
 (sig T12P #:abstract)
@@ -379,7 +380,7 @@
 (sig T12B #:extends T12P)
 
 (run t12-run #:preds []
-     #:scope ([T12P 6] [T12A 2]))  ; NOTE: no T12B in scope → defaults to 4
+     #:scope ([T12P 6] [T12A 2]))  ; no T12B in scope → difference rule gives 4
 
 (define t12p-upper (upper-atoms t12-run T12P))
 (define t12a-upper (upper-atoms t12-run T12A))
@@ -387,9 +388,8 @@
 
 (@check-equal? (length t12p-upper) 6 "T12: Parent upper = 6")
 
-;; T12B's 4 comes from Alloy's difference rule (6 - 2), not the default.
 (@check-equal? (length t12a-upper) 2 "T12: A upper = 2 (explicit)")
-(@check-equal? (length t12b-upper) 4 "T12: B upper = 4 (implicit default)")
+(@check-equal? (length t12b-upper) 4 "T12: B upper = 4 (difference rule)")
 (@check-true (subset-of? t12a-upper t12p-upper) "T12: A ⊆ Parent")
 (@check-true (subset-of? t12b-upper t12p-upper) "T12: B ⊆ Parent")
 (@check-true (disjoint? t12a-upper t12b-upper) "T12: A and B are disjoint (partitioned)")
@@ -397,8 +397,9 @@
 (forge:close-run t12-run)
 
 ;; ================================================================
-;; Test 13: Neither parent nor children have explicit scopes (all default to 4)
-;; Two children each default to need=4, total=8 > parent's 4 surplus → partition skipped.
+;; Test 13: Neither parent nor children have explicit scopes
+;; The top-level parent gets the default (4). The children have no scope, so each is limited
+;; only by the parent → partition skipped.
 ;; ================================================================
 (sig T13P #:abstract)
 (sig T13A #:extends T13P)
@@ -412,9 +413,9 @@
 (define t13b-upper (upper-atoms t13-run T13B))
 
 (@check-equal? (length t13p-upper) 4 "T13: Parent upper = 4 (global default)")
-;; Each child defaults to 4, total 8 > 4 surplus → partition skipped
+;; Children have no scope, so each may use all of the parent's atoms → partition skipped
 (@check-equal? (sort t13a-upper symbol<?) (sort t13b-upper symbol<?)
-               "T13: A and B identical (no partition, all defaults)")
+               "T13: A and B identical (no partition; children unscoped)")
 (@check-equal? (sort t13a-upper symbol<?) (sort t13p-upper symbol<?)
                "T13: children upper = parent upper (no partition)")
 
@@ -503,7 +504,7 @@
 
 ;; ================================================================
 ;; Test 17: Multi-level with missing intermediate scope
-;; Root=6, Mid has NO scope (defaults to 4), LeafA=2, LeafB=2, Other=2.
+;; Root=6, Mid has NO scope (abstract-sum gives 2 + 2 = 4), LeafA=2, LeafB=2, Other=2.
 ;; At root level: Mid need=4, Other need=2, total=6 ≤ 6 → partition fires.
 ;; At mid level: LeafA need=2, LeafB need=2, total=4 ≤ 4 → partition fires.
 ;; ================================================================
@@ -513,10 +514,9 @@
 (sig T17LeafB #:extends T17Mid)
 (sig T17Other #:extends T17Root)
 
-;; T17Mid's scope 4 comes from abstract-sum (2 + 2), not the default.
 (run t17-run #:preds []
      #:scope ([T17Root 6] [T17LeafA 2] [T17LeafB 2] [T17Other 2]))
-     ;; NOTE: no T17Mid in scope → defaults to 4
+     ;; no T17Mid in scope → abstract-sum gives 4
 
 (define t17root-upper (upper-atoms t17-run T17Root))
 (define t17mid-upper (upper-atoms t17-run T17Mid))
@@ -525,7 +525,7 @@
 (define t17other-upper (upper-atoms t17-run T17Other))
 
 (@check-equal? (length t17root-upper) 6 "T17: Root upper = 6")
-(@check-equal? (length t17mid-upper) 4 "T17: Mid upper = 4 (implicit default)")
+(@check-equal? (length t17mid-upper) 4 "T17: Mid upper = 4 (abstract-sum)")
 (@check-equal? (length t17other-upper) 2 "T17: Other upper = 2 (explicit)")
 
 ;; At mid level, partition should assign 2 to each leaf
@@ -546,21 +546,21 @@
 
 ;; ================================================================
 ;; Test 18: one sig + normal child, parent has NO explicit scope
-;; Parent defaults to 4. one-sig takes 1 lower-bound atom.
-;; 3 surplus parent atoms exist. Normal child defaults to 4 → need=4 > 3 → partition skipped.
+;; Abstract-sum gives the parent 1 (one sig) + 3 (Normal) = 4. one-sig takes 1 lower-bound atom.
+;; 3 surplus parent atoms exist. Normal needs 3 → partition fires.
 ;; ================================================================
 (sig T18P #:abstract)
 (sig T18One #:one #:extends T18P)
 (sig T18Norm #:extends T18P)
 
 (run t18-run #:preds []
-     #:scope ([T18Norm 3]))  ; Parent has no scope → default 4
+     #:scope ([T18Norm 3]))  ; Parent has no scope → abstract-sum gives 4
 
 (define t18p-upper (upper-atoms t18-run T18P))
 (define t18one-upper (upper-atoms t18-run T18One))
 (define t18norm-upper (upper-atoms t18-run T18Norm))
 
-(@check-equal? (length t18p-upper) 4 "T18: Parent upper = 4 (implicit default)")
+(@check-equal? (length t18p-upper) 4 "T18: Parent upper = 4 (abstract-sum: 1 + 3)")
 (@check-equal? (length t18one-upper) 1 "T18: one sig upper = 1")
 ;; Normal child needs 3 atoms; 3 surplus exist (4 - 1 one-sig) → partition fires.
 (@check-equal? (length t18norm-upper) 3 "T18: Normal upper = 3 (partitioned)")
@@ -625,9 +625,9 @@
 (forge:close-run t20-run)
 
 ;; ================================================================
-;; Test 21: Partition at root, skipped at mid due to cascading defaults
-;; Root=8, Mid/LeafA/LeafB default to 4, Other=2.
-;; Root level: 4+2=6 ≤ 8 → partition. Mid level: 4+4=8 > 4 → skipped.
+;; Test 21: Partition at root, skipped at mid (unscoped leaves)
+;; Root=8, Other=2; Mid has no scope (difference rule gives 8 - 2 = 6); LeafA/LeafB have none.
+;; Root level: 6+2=8 ≤ 8 → partition. Mid level: leaves are limited only by Mid → no partition.
 ;; Mid and Other are disjoint; leaves share Mid's atoms.
 ;; ================================================================
 (sig T21Root #:abstract)
@@ -638,7 +638,7 @@
 
 (run t21-run #:preds []
      #:scope ([T21Root 8] [T21Other 2]))
-     ;; Mid, LeafA, LeafB all default to 4
+     ;; Mid gets 6 from the difference rule; LeafA, LeafB are limited by Mid
 
 (define t21root-upper (upper-atoms t21-run T21Root))
 (define t21mid-upper (upper-atoms t21-run T21Mid))
@@ -649,14 +649,13 @@
 (@check-equal? (length t21root-upper) 8 "T21: Root upper = 8")
 ;; Lower limits are required for correctness: an upper bound must hold every instance the
 ;; scopes allow. Upper limits are tightness (optimization) goals. Alloy's difference rule gives
-;; T21Mid 8 - 2 = 6; abstract-sum does not apply because its leaves have no scope. (The header
-;; above describes the earlier per-child default.)
+;; T21Mid 8 - 2 = 6; abstract-sum does not apply because its leaves have no scope.
 (@check-true (>= (length t21mid-upper) 6) "T21: Mid upper >= 6 (difference rule: 8 - 2)")
 (@check-true (>= (length t21other-upper) 2) "T21: Other upper >= 2 (scope)")
 (@check-true (<= (length t21mid-upper) 6) "T21: Mid upper <= 6 (tightness: root partition)")
 (@check-true (<= (length t21other-upper) 2) "T21: Other upper <= 2 (tightness: root partition)")
 (@check-true (disjoint? t21mid-upper t21other-upper) "T21: Mid and Other disjoint (tightness: root partition)")
-;; Mid level: leaves each default to 4, total=8 > 4 → partition skipped
+;; Mid level: leaves have no scope, so each may use all of Mid's atoms → partition skipped
 (@check-equal? (sort t21la-upper symbol<?) (sort t21lb-upper symbol<?)
                "T21: LeafA and LeafB identical (no partition at mid)")
 (@check-equal? (sort t21la-upper symbol<?) (sort t21mid-upper symbol<?)
@@ -700,11 +699,12 @@
 
 ;; ================================================================
 ;; Test 23: Exact child under parent with NO explicit scope
-;; Parent: abstract, no scope (defaults to 4).
+;; Parent: abstract, no scope. ChildB has no scope, so abstract-sum does not apply and the
+;; top-level parent gets the default (4).
 ;; ChildA: exactly 3 (generates 3 self-named lower-bound atoms).
-;; ChildB: no scope (defaults to 4).
+;; ChildB: no scope (limited only by the parent).
 ;; Parent budget = max(3,4) = 4. Only 1 surplus atom exists.
-;; ChildB needs 4 but only 1 surplus → partition skipped.
+;; ChildB has no scope → partition skipped.
 ;; ================================================================
 (sig T23P #:abstract)
 (sig T23A #:extends T23P)
@@ -721,7 +721,7 @@
 (@check-equal? (length t23p-upper) 4 "T23: Parent upper = 4 (max of lower=3 and default=4)")
 (@check-equal? (length t23a-lower) 3 "T23: A lower = 3 (exact, self-named)")
 (@check-equal? t23a-upper t23a-lower "T23: A is exact-bounded")
-;; ChildB needs 4 but only 1 surplus → partition skipped, B gets all parent atoms
+;; ChildB has no scope → partition skipped, B gets all parent atoms
 (@check-equal? (length t23b-upper) 4
                "T23: B upper = 4 (no partition)")
 (@check-true (subset-of? t23a-upper t23p-upper) "T23: A ⊆ Parent")
@@ -760,10 +760,10 @@
 (forge:close-run t24-run)
 
 ;; ================================================================
-;; Test 25: Three children, one explicit scope, two default → partition fires
-;; Parent=10, ChildA=2 (explicit), ChildB=no scope (4), ChildC=no scope (4).
-;; Total need = 2 + 4 + 4 = 10 ≤ 10 → partition fires.
-;; Each child gets a disjoint subset of surplus atoms.
+;; Test 25: Three children, one explicit scope, two unscoped → no partition
+;; Parent=10, ChildA=2 (explicit), ChildB and ChildC no scope (limited only by Parent).
+;; The difference rule needs exactly one unscoped child, so it doesn't apply.
+;; Every child may use all of Parent's atoms.
 ;; ================================================================
 (sig T25P #:abstract)
 (sig T25A #:extends T25P)
@@ -771,7 +771,7 @@
 (sig T25C #:extends T25P)
 
 (run t25-run #:preds []
-     #:scope ([T25P 10] [T25A 2]))  ; T25B and T25C default to 4
+     #:scope ([T25P 10] [T25A 2]))  ; T25B and T25C are limited only by T25P
 
 (define t25p-upper (upper-atoms t25-run T25P))
 (define t25a-upper (upper-atoms t25-run T25A))
@@ -785,7 +785,7 @@
 ;; difference rule needs exactly one unscoped child). An instance with no A or C atoms may have 10
 ;; B atoms, so B's and C's upper bounds must include A's atoms; their uppers cannot be disjoint
 ;; from A's. Giving A an exclusive 2-atom slice would make A upper <= 2 (an optimization not
-;; implemented). (The header above describes the earlier per-child default.)
+;; implemented).
 (@check-true (>= (length t25a-upper) 2) "T25: A upper >= 2 (scope)")
 (@check-true (>= (length t25b-upper) 10) "T25: B upper >= 10 (limited only by parent)")
 (@check-true (>= (length t25c-upper) 10) "T25: C upper >= 10 (limited only by parent)")
@@ -798,7 +798,7 @@
 ;; ================================================================
 ;; Test 26: one sig as parent with child
 ;; Unusual but syntactically valid. Parent has 1 atom, no surplus.
-;; Child defaults to 4 but only 1 atom exists → gets parent's single atom.
+;; Child has no scope, so it is limited by the parent → gets parent's single atom.
 ;; ================================================================
 (sig T26OneP #:one)
 (sig T26Child #:extends T26OneP)
@@ -819,7 +819,7 @@
 ;; ================================================================
 ;; Test 27: lone sig as parent with child
 ;; lone parent has scope (0,1), so upper=1.
-;; Child defaults to 4 but only 1 atom exists → gets parent's single atom.
+;; Child has no scope, so it is limited by the parent → gets parent's single atom.
 ;; ================================================================
 (sig T27LoneP #:lone)
 (sig T27Child #:extends T27LoneP)
