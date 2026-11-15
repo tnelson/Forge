@@ -34,7 +34,7 @@
          (prefix-in @ (only-in racket +)))
 (require forge/sigs)
 (require forge/choose-lang-specific)
-(require (only-in forge/lang/ast raise-forge-error))
+(require (only-in forge/lang/ast raise-forge-error raise-forge-warning))
 
 (provide #%module-begin)
 (provide #%top #%app #%datum #%top-interaction)
@@ -1259,14 +1259,14 @@
 ;; A potential improvement is to break apart test-expect
 ;; blocks and examine each test.
 
+; Embed the error message at runtime, so that `option verbose 0` applies. 
 (define-for-syntax (ensure-target-ref target-pred ex)
   (define tp (syntax-e target-pred))
-  (let ([ex-as-datum (syntax->datum ex)])
-    (unless
-      (memq tp (flatten ex-as-datum))
-      (raise-forge-warning
-       #:msg (format "Test does not reference ~a." tp)
-       #:context ex))))
+  (if (memq tp (flatten (syntax->datum ex)))
+      #'(void)
+      (with-syntax ([msg (format "Test does not reference ~a." tp)]
+                    [loc ex])
+        #'(raise-forge-warning #:msg msg #:context (quote-syntax loc)))))
 
 
 (define-syntax (NT-TestSuiteDecl stx)
@@ -1274,11 +1274,11 @@
   [tsd:TestSuiteDeclClass 
    
     ;; Static checks on test blocks go here.
-   (for ([tc (syntax->list #'(tsd.test-constructs ...))])
-        (ensure-target-ref #'tsd.pred-name tc))
+   #:with (warning ...) (for/list ([tc (syntax->list #'(tsd.test-constructs ...))])
+                          (ensure-target-ref #'tsd.pred-name tc))
 
    (syntax/loc stx
-    (begin tsd.test-constructs ...))]))
+    (begin warning ... tsd.test-constructs ...))]))
 
 
 (define-syntax (NT-ExampleDecl stx)

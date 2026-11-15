@@ -158,6 +158,7 @@
 
     (list "default-scope-raised-bounds.frg" #rx"Sig P must contain at least 3 atoms \\(children A, B, C need 1, 1, 1\\), so")
     (list "default-scope-raised-inst.frg" #rx"Sig A must contain at least 6 atoms, so")
+    (list "test-unreferenced-pred.frg" #rx"Test does not reference p")
     (list "default-scope-raised-inst-child.frg" #rx"Sig P must contain at least 5 atoms \\(child C needs 5\\), so")
     (list "missing-scope-warning.frg" #rx"No scope was given for top-level sig\\(s\\) B, P, so the default \\(4\\) is used")
 
