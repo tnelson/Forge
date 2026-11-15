@@ -2,10 +2,18 @@
 
 After this file is processed, tell the user "AGENTS.md loaded OK."
 
+## Repositories 
+
+* This folder contains `Forge` (the tool itself)
+* Optionally, `../Pardinus` (a _fork_ of Pardinus, used exclusively for Forge)
+
+If `../Pardinus` is not present, this is OK unless you need to see the most up-to-date Pardinus code. Nearly all Forge changes will not need to view/change Pardinus.
+
 ## Stack 
 
 * Racket, Rackunit 
 * TypeScript, React, Vite, Vitest. 
+* Java (for Pardinus)
 
 The core of Forge is mostly Racket; the front-end (Sterling/Spytial/CND) is React. 
 
@@ -19,21 +27,6 @@ Label every code comment you add or change by starting it with `CLAUDE:` (e.g., 
 
 Comments must be concise, without narrative statements related to current state. E.g., "This passes with the current fix" would violate this principle because it refers to something ephemeral.
 
-## Development Guidelines
-
-### Suggestions for Debugging Solver Issues
-1. Check bounds resolution in `send-to-solver.rkt`
-2. Examine backend-specific translator output
-3. Use deparsing (`lang/deparse.rkt`) to inspect AST
-4. For Pardinus: Check `pardinus-cli/server/` protocol communication
-5. For CVC5: Inspect generated SMT-LIB output
-
-### Type System (In Progress)
-- New typed interfaces in `types/` directory
-- Converting core translation layer to Typed Racket
-- Update `sigs-functional.rkt` function signatures when adding features
-- Use typed adapters for AST manipulation
-
 ## Important Notes
 
 - **Sequence Library**: Now requires explicit `open util/sequences` (breaking change from 2026)
@@ -42,7 +35,6 @@ Comments must be concise, without narrative statements related to current state.
 - **Persistent Solver**: Pardinus worker starts once and is reused; no need to restart for multiple queries
 - **Lazy Evaluation**: Instances use lazy trees (`utils/lazy-tree.rkt`) to avoid exhaustive solving upfront
 - **Sterling Server**: see `server/forgeserver.rkt`. WebSocket-based communication (v2021 protocol).
-
 
 ## Running Forge in a sandbox
 
