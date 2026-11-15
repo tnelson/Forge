@@ -48,8 +48,8 @@ test expect instCardinality {
   // The implicit raising is only done minimally, as required by the binding expression.
   ask7_bindge6_sat:          { #A = 7 } for { #A >= 6 } is unsat
  
-  // Binding blocks are evaluated in order, so order matters for cardinality here.
-  geq_then_leq_7_unsat: { #A = 7 } for { #A >= 6  #A <= 8 } is unsat
+  // Binding order does not matter for cardinality.
+  geq_then_leq_7_sat:   { #A = 7 } for { #A >= 6  #A <= 8 } is sat
   leq_then_geq_7_sat:   { #A = 7 } for { #A <= 8  #A >= 6 } is sat
 
   // If a scope _is_ declared, it won't be implicitly raised. 

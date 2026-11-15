@@ -13,6 +13,10 @@ option verbose 0
   that child gets the remainder.
   
   Forge will echo that as of the January 2027 version.
+
+  This file was created with help from Claude Opus and possibly other agents. 
+  Agent-generated comments in this file need not be preceded by the agent name.
+
 */
  
 /* 

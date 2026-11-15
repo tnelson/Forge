@@ -156,8 +156,9 @@
     (list "fun-param-shadows-pred.frg" #rx"Parameter 'helper' in function 'shadowsPred' shadows an existing predicate")
     (list "fun-param-shadows-fun.frg" #rx"Parameter 'getP' in function 'shadowsFun' shadows an existing function")
 
-    (list "default-scope-raised-bounds.frg" #rx"Sig P must contain at least 3 atoms, so")
+    (list "default-scope-raised-bounds.frg" #rx"Sig P must contain at least 3 atoms \\(children A, B, C need 1, 1, 1\\), so")
     (list "default-scope-raised-inst.frg" #rx"Sig A must contain at least 6 atoms, so")
+    (list "default-scope-raised-inst-child.frg" #rx"Sig P must contain at least 5 atoms \\(child C needs 5\\), so")
     (list "missing-scope-warning.frg" #rx"No scope was given for top-level sig\\(s\\) B, P, so the default \\(4\\) is used")
 
     ;;; And these tests ensure that you cannot have arbitrary expressions on the RHS of assertions

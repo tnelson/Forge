@@ -700,9 +700,23 @@ Please declare a sufficient scope for ~a."
           (when (and local-default-upper
                      (not (get-scope-upper root))
                      (> lower-size local-default-upper))
+            ; Name the children, if any, whose lower bounds contribute atoms.
+            (define contributing-kids
+              (filter (lambda ([c : Sig]) (pair? (hash-ref lower-bounds c)))
+                      (get-children run-spec root)))
+            (define kid-sizes
+              (map (lambda ([c : Sig]) (length (hash-ref lower-bounds c))) contributing-kids))
+            (define cause
+              (cond [(null? contributing-kids) ""]
+                    [(null? (cdr contributing-kids))
+                     (format " (child ~a needs ~a)" (Sig-name (car contributing-kids)) (car kid-sizes))]
+                    [else
+                     (format " (children ~a need ~a)"
+                             (string-join (map (lambda ([c : Sig]) (symbol->string (Sig-name c))) contributing-kids) ", ")
+                             (string-join (map number->string kid-sizes) ", "))]))
             (raise-forge-warning
-             #:msg (format "Sig ~a must contain at least ~a atoms, so Forge implicitly raised its scope from the default (`for ~a`) to ~a."
-                           (Sig-name root) lower-size local-default-upper lower-size)
+             #:msg (format "Sig ~a must contain at least ~a atoms~a, so Forge implicitly raised its scope from the default (`for ~a`) to ~a."
+                           (Sig-name root) lower-size cause local-default-upper lower-size)
              #:context run-command))
           ;(printf "no-rel-bound case for ~a. scope=~a; default-scope:~a~n"
           ;        root (get-scope-upper root) (get-scope-upper-default root))

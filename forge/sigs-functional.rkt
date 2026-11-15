@@ -466,15 +466,25 @@
 
 ; Alloy's policy for abstract sigs without an explicit scope, when all of its children 
 ; have one. Proceeds recursively, deriving child scopes as needed/possible.  
-(define (derive-abstract-scopes scope sigs)
+(define (derive-abstract-scopes scope sigs context)
   (define (max-scope-of sc a-sig)
     (define r (hash-ref (Scope-sig-scopes sc) (Sig-name a-sig) #f))
     (and r (Range-upper r)))
   (define (children-of a-sig)
     (filter (lambda (c) (equal? (Sig-extends c) a-sig)) sigs))
+
+   ; Keeps any min from an inst cardinality.
   (define (set-max sc a-sig n)
+    (define prior (hash-ref (Scope-sig-scopes sc) (Sig-name a-sig) #f))
+    (define min-scope (if prior (Range-lower prior) 0))
+    (when (< n min-scope)
+      (raise-forge-error
+       #:msg (format (string-append "Bound conflict: numeric max scope on ~a was"
+                                    " less than numeric min scope (~a vs. ~a).")
+                     (Sig-name a-sig) n min-scope)
+       #:context context))
     (struct-copy Scope sc
-                 [sig-scopes (hash-set (Scope-sig-scopes sc) (Sig-name a-sig) (Range 0 n))]))
+                 [sig-scopes (hash-set (Scope-sig-scopes sc) (Sig-name a-sig) (Range min-scope n))]))
   (define next
     (for/fold ([sc scope])
               ([a-sig sigs]
@@ -493,18 +503,7 @@
             [else sc])))
   (if (equal? next scope)
       scope
-      (derive-abstract-scopes next sigs)))
-
-; The first value is the maximum scope for a sig without its own declared.
-; The second value is #t iff the default comes from a plain `for N` without `but`. 
-(define (inherited-max-scope scope sig)
-  (define parent (and (Sig? sig) (Sig-extends sig)))
-  (define parent-scope (and parent (hash-ref (Scope-sig-scopes scope) (Sig-name parent) #f)))
-  (cond [(and parent-scope (Range-upper parent-scope))
-         (values (Range-upper parent-scope) #f)]
-        [parent (inherited-max-scope scope parent)]
-        [else (values (Range-upper (get-scope scope (string->symbol (relation-name sig))))
-                      (and (Scope-default-scope scope) #t))]))
+      (derive-abstract-scopes next sigs context)))
 
 ; update-scope :: Scope, node/expr/relation, Range, (U node syntax) -> Scope
 ; Updates the numeric Scope (min and max size) for a given sig, combining the new (given) 
@@ -514,22 +513,14 @@
   (define name (string->symbol (relation-name sig)))
   (define prior (hash-ref (Scope-sig-scopes scope) name #f))
   (define min-scope (@max (Range-lower given) (if prior (Range-lower prior) 0)))
+  (define prior-max (and prior (Range-upper prior)))
+  
+  ; With no max given or prior, the max stays #f, to be set later.
   (define max-scope
-    (cond [(and prior (Range-upper given)) (@min (Range-upper prior) (Range-upper given))]
-          [prior (Range-upper prior)]
-          [(Range-upper given) (Range-upper given)]
-          ; An undeclared (default) max scope may be raised to fit the given min scope. This is consistent with 
-          ; behavior around `one sig` children of a sig, where the parent's upper bound is invisibly raised. 
-          [else
-           (define-values (default-max from-bare-default?) (inherited-max-scope scope sig))
-           
-           (when (and from-bare-default? (< default-max (Range-lower given)))
-             (raise-forge-warning
-              #:msg (format "Sig ~a must contain at least ~a atoms, so Forge implicitly raised its scope from the default (`for ~a`) to ~a."
-                            name (Range-lower given) default-max (Range-lower given))
-              #:context context))
-           (@max default-max (Range-lower given))]))
-  (when (< max-scope min-scope)
+    (if (and prior-max (Range-upper given))
+        (@min prior-max (Range-upper given))
+        (or prior-max (Range-upper given))))
+  (when (and max-scope (< max-scope min-scope))
     (raise-forge-error
      #:msg (format (string-append "Bound conflict: numeric max scope on ~a was"
                                   " less than numeric min scope (~a vs. ~a).")
@@ -658,7 +649,7 @@
   ; Invoking the Inst func folds over all involved `inst` declarations to produce a final triplet.
   (define-values (scope-before-derivation bounds) 
     ((Inst-func wrapped-bounds-inst) scope-with-ones default-bounds))
-  (define scope (derive-abstract-scopes scope-before-derivation (get-sigs state)))
+  (define scope (derive-abstract-scopes scope-before-derivation (get-sigs state) command))
 
   ; If a command gives scopes for some sigs, but fails to provide one for a top-level sig, 
   ; Forge uses the default size for the top-level sig. Alloy would throw an error here, 
