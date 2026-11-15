@@ -8,7 +8,8 @@ on:
     - dev
 
 jobs:
-  check-test-coverage:
+  # Ensure that all Forge tests are included in the CI run. 
+  check-test-files-included:
     runs-on: ubuntu-latest
     name: check-test-coverage
     steps:
@@ -71,9 +72,10 @@ jobs:
       continue-on-error: true
       run: raco setup --check-pkg-deps --unused-pkg-deps --no-docs --pkgs forge
 
-  # Run Forge's test suite.
+  # Run Forge's main test suite in default (Linux) environment.
+  # Includes custom-solver tests for Linux.
   test-forge:
-    needs: check-test-coverage
+    needs: check-test-files-included
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -89,6 +91,10 @@ jobs:
             test-dir: tests/smt
           - name: other
             test-dir: tests/error tests/froglet tests/srclocs tests/temporal
+          - name: custom-solver
+            test-dir: tests/forge/custom-solver
+            custom-run: true
+
     name: test-${{ matrix.name }}
     steps:
     - name: Checkout repo
@@ -128,10 +134,201 @@ jobs:
       run: |
         raco pkg update --auto --no-docs --batch ./forge 2>/dev/null || raco pkg install --auto --no-docs ./forge
 
+    # Primary tests (excluding custom solver tests)
     - name: Run tests
+      if: ${{ !matrix.custom-run }}
       run: |
         cd forge/
         chmod +x run-tests.sh
         for dir in ${{ matrix.test-dir }}; do
           ./run-tests.sh "$dir"
         done
+
+    # Now test custom solvers 
+    - name: Run custom solver tests
+      if: ${{ matrix.custom-run }}
+      run: |
+        cd forge/${{ matrix.test-dir }}
+        chmod +x run.sh subdir/run.sh
+        exitCode=0
+        for f in *.frg; do
+          echo "Running $f..."
+          if ! racket "$f" -O run_sterling \'off; then
+            echo "FAILED: $f"
+            exitCode=1
+          fi
+        done
+        exit $exitCode
+
+    # Re-test custom solvers within `forge/`. This is meant to check for a regression
+    # where relative paths start mattering again for custom solvers.
+    - name: Run custom solver tests (launched from forge)
+      if: ${{ !cancelled() && matrix.custom-run }}
+      run: |
+        cd forge
+        chmod +x ${{ matrix.test-dir }}/run.sh ${{ matrix.test-dir }}/subdir/run.sh
+        exitCode=0
+        for f in ${{ matrix.test-dir }}/*.frg; do
+          echo "Running $f from forge/..."
+          if ! racket "$f" -O run_sterling \'off; then
+            echo "FAILED: $f"
+            exitCode=1
+          fi
+        done
+        exit $exitCode
+
+  # Test custom solvers on Windows.
+  test-custom-solver-win:
+    needs: check-test-files-included
+    runs-on: windows-latest
+    name: test-custom-solver-win
+    steps:
+    - name: Checkout repo
+      uses: actions/checkout@v4
+
+    - name: Setup Racket
+      uses: Bogdanp/setup-racket@v1.14
+      with:
+        version: '9.3'
+
+    - name: Setup Java
+      uses: actions/setup-java@v4
+      with:
+        distribution: 'temurin'
+        java-version: '17'
+
+    - name: Cache Racket packages
+      uses: actions/cache@v4
+      with:
+        path: ~/AppData/Roaming/Racket
+        key: racket-pkgs-win-${{ hashFiles('forge/info.rkt') }}
+        restore-keys: racket-pkgs-win-
+
+    - name: Install Forge
+      run: |
+        raco pkg update --auto --no-docs --batch ./forge 2>$null; if ($LASTEXITCODE -ne 0) { raco pkg install --auto --no-docs ./forge }
+
+    - name: Run custom solver tests
+      shell: cmd
+      run: |
+        cd forge\tests\forge\custom-solver\win
+        set exitCode=0
+        for %%f in (*.frg) do (
+          echo Running %%f...
+          racket "%%f" -O run_sterling 'off
+          if errorlevel 1 (
+            echo FAILED: %%f
+            set exitCode=1
+          )
+        )
+        exit /b %exitCode%
+
+    - name: Run custom solver tests (path with spaces)
+      shell: cmd
+      run: |
+        mkdir "forge\tests\forge\custom-solver\win space test"
+        xcopy /s /e /i "forge\tests\forge\custom-solver\win" "forge\tests\forge\custom-solver\win space test"
+        cd "forge\tests\forge\custom-solver\win space test"
+        set exitCode=0
+        for %%f in (*.frg) do (
+          echo Running %%f [space path]...
+          racket "%%f" -O run_sterling 'off
+          if errorlevel 1 (
+            echo FAILED: %%f
+            set exitCode=1
+          )
+        )
+        exit /b %exitCode%
+
+    # Re-test custom solvers within `forge/`. This is meant to check for a regression
+    # where relative paths start mattering again for custom solvers.
+    - name: Run custom solver tests (launched from forge)
+      shell: cmd
+      run: |
+        cd forge
+        set exitCode=0
+        for %%f in (tests\forge\custom-solver\win\*.frg) do (
+          echo Running %%f from forge...
+          racket "%%f" -O run_sterling 'off
+          if errorlevel 1 (
+            echo FAILED: %%f
+            set exitCode=1
+          )
+        )
+        exit /b %exitCode%
+
+  # Test custom solvers on macOS.
+  test-custom-solver-mac:
+    needs: check-test-files-included
+    runs-on: macos-latest
+    name: test-custom-solver-mac
+    steps:
+    - name: Checkout repo
+      uses: actions/checkout@v4
+
+    - name: Setup Racket
+      uses: Bogdanp/setup-racket@v1.14
+      with:
+        version: '9.3'
+
+    - name: Setup Java
+      uses: actions/setup-java@v4
+      with:
+        distribution: 'temurin'
+        java-version: '17'
+
+    - name: Cache Racket packages
+      uses: actions/cache@v4
+      with:
+        path: ~/Library/Racket
+        key: racket-pkgs-mac-${{ hashFiles('forge/info.rkt') }}
+        restore-keys: racket-pkgs-mac-
+
+    - name: Install Forge
+      run: |
+        raco pkg update --auto --no-docs --batch ./forge 2>/dev/null || raco pkg install --auto --no-docs ./forge
+
+    - name: Run custom solver tests
+      run: |
+        cd forge/tests/forge/custom-solver
+        chmod +x run.sh subdir/run.sh
+        exitCode=0
+        for f in *.frg; do
+          echo "Running $f..."
+          if ! racket "$f" -O run_sterling \'off; then
+            echo "FAILED: $f"
+            exitCode=1
+          fi
+        done
+        exit $exitCode
+
+    - name: Run custom solver tests (path with spaces)
+      run: |
+        cp -R forge/tests/forge/custom-solver "forge/tests/forge/mac space test"
+        cd "forge/tests/forge/mac space test"
+        chmod +x run.sh subdir/run.sh
+        exitCode=0
+        for f in *.frg; do
+          echo "Running $f [space path]..."
+          if ! racket "$f" -O run_sterling \'off; then
+            echo "FAILED: $f"
+            exitCode=1
+          fi
+        done
+        exit $exitCode
+
+    # Re-test custom solvers within `forge/`. This is meant to check for a regression
+    # where relative paths start mattering again for custom solvers.
+    - name: Run custom solver tests (launched from forge)
+      run: |
+        cd forge
+        chmod +x tests/forge/custom-solver/run.sh tests/forge/custom-solver/subdir/run.sh
+        exitCode=0
+        for f in tests/forge/custom-solver/*.frg; do
+          echo "Running $f from forge/..."
+          if ! racket "$f" -O run_sterling \'off; then
+            echo "FAILED: $f"
+            exitCode=1
+          fi
+        done
+        exit $exitCode

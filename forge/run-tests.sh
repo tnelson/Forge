@@ -24,8 +24,15 @@ doNotTestPattern="\(error\|srclocs\|helpers\)/.*\\.frg"
 
 smtTestPattern=".*/smtlibtor/.*"
 
+# Custom-solver tests are OS-specific. 
+if [[ $(uname) == "Windows" || $(uname) =~ ^MINGW ]]; then
+    otherOSPattern="custom-solver/[^/]*\\.frg"
+else
+    otherOSPattern="custom-solver/win/"
+fi
+
 # This will create a newline-separated list of file names. But note comments on `for` below.
-testFiles="$( find $testDir -type f \( -name "*.rkt" -o -name "*.frg" \) | grep --invert-match ${doNotTestPattern} )"
+testFiles="$( find $testDir -type f \( -name "*.rkt" -o -name "*.frg" \) | grep --invert-match ${doNotTestPattern} | grep --invert-match ${otherOSPattern} )"
 
 # If there is no such folder or the folder is empty, abort. 
 if [ -z "$testFiles" ]; then
