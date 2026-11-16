@@ -304,8 +304,9 @@
         'backend symbol?
         ; 'verbosity exact-nonnegative-integer?
         'sb exact-nonnegative-integer?
-        'coregranularity exact-nonnegative-integer?
-        'logtranslation exact-nonnegative-integer?
+        ; Pardinus only accepts these ranges.
+        'coregranularity (lambda ([x : Any]) (and (exact-integer? x) (<= 0 x 3)))
+        'logtranslation (lambda ([x : Any]) (and (exact-integer? x) (<= 0 x 2)))
         'min_tracelength exact-positive-integer?
         'max_tracelength exact-positive-integer?
         'problem_type symbol?
@@ -333,8 +334,8 @@
         'solver (format "one of ~a or a path string" VALID_BUILTIN_SOLVERS)
         'backend "symbol"
         'sb "non-negative integer"
-        'coregranularity "non-negative integer"
-        'logtranslation "non-negative integer"
+        'coregranularity "an integer from 0 to 3"
+        'logtranslation "an integer from 0 to 2"
         'min_tracelength "positive integer"
         'max_tracelength "positive integer"
         'problem_type "symbol"

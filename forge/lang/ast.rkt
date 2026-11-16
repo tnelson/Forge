@@ -1344,9 +1344,9 @@
           [(srcloc? context) context]
           [(syntax? context) (build-source-location context)]  
           [else #f]))
-  (if loc
-      (format "~a:~a:~a (span ~a)" (srcloc-source loc) (srcloc-line loc) (srcloc-column loc) (srcloc-span loc))
-      "unknown:?:?"))
+  (cond [loc (format "~a:~a:~a (span ~a)" (srcloc-source loc) (srcloc-line loc) (srcloc-column loc) (srcloc-span loc))]
+        [(string? context) context] 
+        [else "unknown:?:?"]))
 
 (define (raise-forge-error #:msg [msg "error"] #:context [context #f] #:raise? [raise? #t])
   (if raise?

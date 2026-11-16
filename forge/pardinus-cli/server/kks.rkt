@@ -3,6 +3,7 @@
 (require (only-in racket/syntax format-symbol))
 
 (require forge/shared)
+(require (only-in forge/lang/ast raise-forge-warning))
 (require racket/class racket/match)
 (require forge/pardinus-cli/server/pardinus-server
          forge/solver-specific/server-common
@@ -170,6 +171,7 @@
 ; that form a minimal unsatisfiable core.  The produced
 ; list will be non-empty if the underlying solver was
 ; instructed to provide cores; it will be empty otherwise.
+
 (define (read-solution port err-port)
   (define result (read port))
   (when (> (get-verbosity) VERBOSITY_LOW)
@@ -179,6 +181,10 @@
     ;; (It will be printed above if verbosity is > low.)
     ;; Continue looking for a real solution.
     [(list (== 'info ) _ ...)
+     (read-solution port err-port)]
+    ; Pardinus reports problems that are recoverable with `(warning "...")`.
+    [(list (== 'warning) (? string? msg))
+     (raise-forge-warning #:msg msg #:context server-name)
      (read-solution port err-port)]
     
     ;; SAT results. Engine MUST provide statistics, run name, and metadata elements
@@ -223,6 +229,9 @@
     ;; (It will be printed above if verbosity is > low.)
     [(list (== 'info ) _ ...)
      (read-evaluation port err-port)]
+    [(list (== 'warning) (? string? msg))
+     (raise-forge-warning #:msg msg #:context server-name)
+     (read-evaluation port err-port)]
     [(list (== 'evaluated) (== ':expression) atoms)
      (cons 'expression atoms)]
     [(list (== 'evaluated) (== ':int-expression) val)
@@ -247,6 +256,9 @@
     ;; A message that was put in the buffer for debugging/info. Ignore it.
     ;; (It will be printed above if verbosity is > low.)
     [(list (== 'info ) _ ...)     
+     (read-ack port err-port)]
+    [(list (== 'warning) (? string? msg))
+     (raise-forge-warning #:msg msg #:context server-name)
      (read-ack port err-port)]
     [(list (== 'ack) id)     
      id]    
