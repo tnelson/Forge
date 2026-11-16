@@ -17,7 +17,7 @@
 
 (define server-name "Pardinus")
 
-(provide start-server) 
+(provide start-server native-glucose-available?) 
 (define (start-server [solver-type 'stepper] [solver-subtype 'default] [java-exe #f])
   (when (>= (get-verbosity) VERBOSITY_HIGH)
     (printf "Starting ~a server.~n" server-name))

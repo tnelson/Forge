@@ -34,7 +34,8 @@
   (Values Output-Port Input-Port Input-Port (-> Void) (-> Boolean)))])
 (require/typed forge/pardinus-cli/server/kks
   [(start-server pardinus:start-server ) (-> Symbol Symbol (U False Path-String)
-  (Values Output-Port Input-Port Input-Port  (-> Void) (-> Boolean)))])
+  (Values Output-Port Input-Port Input-Port  (-> Void) (-> Boolean)))]
+  [(native-glucose-available? pardinus:native-glucose-available?) (-> Boolean)])
 
 ; (send-to-kodkod run-name run-spec bitwidth all-atoms solverspec total-bounds bound-lower 
 ;   bound-upper run-constraints stdin stdout stderr))
@@ -267,8 +268,20 @@
 
   ; Confirm that if the user is invoking a custom solver, that custom solver exists
   (define solver-opt (get-option run-spec 'solver))
+  
+  ; Use Glucose (or PMaxSAT4J, if target-oriented) as the default if its native library is present.
+  (define (resolve-default-solver) : Symbol
+    (define choice
+      (cond [(equal? 'target (get-option run-spec 'problem_type)) 'PMaxSAT4J]
+            [(pardinus:native-glucose-available?) 'Glucose]
+            [else 'SAT4J]))
+    (when (>= (get-verbosity) VERBOSITY_HIGH)
+      (printf "  Available default solver (~a) used.~n" choice))
+    choice)
+
   (define solver-option : (U Symbol String)
-    (cond [(symbol? solver-opt) solver-opt]
+    (cond [(equal? solver-opt 'default) (resolve-default-solver)]
+          [(symbol? solver-opt) solver-opt]
           [(string? solver-opt) solver-opt]
           [else (raise-forge-error #:msg "solver option must be a symbol or string" #:context run-command)]))
   (define solverspec (cond [(symbol? solver-option)

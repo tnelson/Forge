@@ -252,7 +252,8 @@
 ;   this will send back info about crashes, but shouldn't spam (and possibly overfill) stderr.
 (define DEFAULT-OPTIONS : (HashTable Symbol Any)
   (hash 'eval-language     'surface
-        'solver            'SAT4J
+        ; The default solver, whatever it is set to in send-to-solver.rkt. 
+        'solver            'default
         'backend           'pardinus
         'sb                20
         'coregranularity   0
@@ -294,7 +295,7 @@
 (define (oneof-pred lst)
   (lambda ([x : Any]) (if (member x lst) #t #f)))
 
-(define VALID_BUILTIN_SOLVERS '(SAT4J Glucose MiniSat MiniSatProver PMaxSAT4J))
+(define VALID_BUILTIN_SOLVERS '(default SAT4J Glucose MiniSat MiniSatProver PMaxSAT4J))
 
 (define option-types
   (hash 'eval-language symbol?
