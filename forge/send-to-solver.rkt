@@ -1113,8 +1113,11 @@ Please declare a sufficient scope for ~a."
       (define need-upper? (and int-upper (< int-upper bound-upper-size)))
       
       ; Guard against overflow when we need to use cardinality constraints for scopes. 
+      ; The checks below reject negative counts, but wrapping to exactly 0 would pass
+      ; the cardinality constraints produced. Throw an error in this case to avoid silent failure.
       (define may-wrap? (>= bound-upper-size max-int))
-      (when (and (or need-lower? need-upper?) (>= bound-upper-size (* 2 max-int)))
+      (when (and need-upper?
+                 (>= bound-upper-size (+ (* 2 max-int) (if (and need-lower? int-lower) int-lower 0))))
         (raise-run-error (format (string-append "Too many possible atoms for given bit width; "
                                                 "Sig: ~a, Possible atoms: ~a, Max-int: ~a")
                                  (Sig-name sig) bound-upper-size (sub1 max-int))
