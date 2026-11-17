@@ -37,8 +37,6 @@
   (Values Output-Port Input-Port Input-Port  (-> Void) (-> Boolean)))]
   [(native-glucose-available? pardinus:native-glucose-available?) (-> Boolean)])
 
-; (send-to-kodkod run-name run-spec bitwidth all-atoms solverspec total-bounds bound-lower 
-;   bound-upper run-constraints stdin stdout stderr))
 ; Separate solver-specific translation for each solver backend
 (require/typed forge/solver-specific/pardinus
   [send-to-kodkod (-> Symbol Run-spec Integer (Listof FAtom) Any Any Any Any 
@@ -57,7 +55,6 @@
                          (String #:run-command (U False Syntax)) (U Sat Unsat Unknown))])
 
 ; Disable DrRacket GUI extension/tool
-;(require "drracket-gui.rkt")
 
 (provide send-to-solver reset-run-name-history! stop-solver-process!)
 
@@ -147,7 +144,6 @@
   ; TODO TYPES: really? what about relations declared pfunc / is linear together?
   ; ** THIS MUST BE DONE BEFORE COMPUTING BOUNDS! **
   (for ([relation (get-relations run-spec)])
-    ;(printf "applying constraints for ~a; ~a ~n" relation (Relation-breaker relation))
       ; Built-ins like int successor ("succ") can have #f as their break.
       (define the-breaker (Relation-breaker relation))
       (when the-breaker
@@ -187,10 +183,8 @@
                                 (if extend-sig
                                   (values sig extend-sig)
                                   (raise (format "Internal error building extensions-store. Sig was: ~a" sig))))])
-      ;(printf "args-- total-bounds : ~a~n args-- sig-rels : ~a~n args-- upper-bounds : ~a~n" total-bounds sig-rels upper-bounds )
       (constrain-bounds total-bounds sig-rels upper-bounds relations-store extensions-store)))
   
-  ;(printf "after-- total-bounds : ~a~n" total-bounds)
   (clear-breaker-state)
 
   (define sigs-and-rels
@@ -529,7 +523,6 @@
   (define (fill-lower-by-scope sig)
     (define children-lowers
       (apply append (map fill-lower-by-scope (get-children run-spec sig))))
-    ;(printf "fill-lower-by-scope case for ~a; chlds-lowers: ~a ~n" sig children-lowers)
     (define curr-lower-bound (get-bound-lower sig))
     (define curr-lower-scope (get-scope-lower-default sig))
     (define true-lower
@@ -735,15 +728,12 @@ Please declare a sufficient scope for ~a."
              #:msg (format "Sig ~a must contain at least ~a atoms~a, so Forge implicitly raised its scope from the default (`for ~a`) to ~a."
                            (Sig-name root) lower-size cause local-default-upper lower-size)
              #:context run-command))
-          ;(printf "no-rel-bound case for ~a. scope=~a; default-scope:~a~n"
-          ;        root (get-scope-upper root) (get-scope-upper-default root))
 
           ; Generate new names
           (: shared (Listof Symbol))
           (define shared (generate-names root (@- upper-size lower-size)))
           ; This function is also responsible for validating totals (we didn't go over budget)
           (fill-upper-no-bound root shared #t)))  ; root shared is always clean
-    ;(printf "filling bounds at ~a; upper = ~a; lower = ~a~n" root upper-bounds lower-bounds)
     (set! sig-atoms (append sig-atoms (hash-ref upper-bounds root))))
 
   ; Ensure that top-level sigs are disjoint. Throw an error if user-provided bounds (or a bug) 
@@ -868,7 +858,6 @@ Please declare a sufficient scope for ~a."
                      lower]
                     [else
                      (map (inst list FAtom) (hash-ref upper-bounds sig))])])
-        ;(printf "bounds-hash at ~a; lower = ~a; upper = ~a; non-one upper = ~a~n" rel lower upper (hash-ref upper-bounds sig))
         (define extra (set-subtract (list->set lower) (list->set upper)))
         (unless (set-empty? extra)
           (define blame (or (find-blame-descendant sig extra) sig))
@@ -959,12 +948,6 @@ Please declare a sufficient scope for ~a."
                #:unless (equal? (Relation-name relation) 'succ))
       (: sigs (Listof Sig))
       (define sigs (get-sigs run-spec relation))
-      ; Types: compose is supposed to be varargs!
-      ; (define sig-atoms (map (compose (curry map car)
-      ;                                 bound-upper
-      ;                                 (curry hash-ref sig-to-bound)
-      ;                                 Sig-name) 
-      ;                        sigs))
       
       (define sig-atoms (map (lambda ([a-sig : Sig]) 
                                   (define sig-name (Sig-name a-sig))
@@ -973,9 +956,6 @@ Please declare a sufficient scope for ~a."
                                   (map (lambda ([tup : Tuple]) (car tup))
                                        upper-tups))
                              sigs))
-       ;(printf "~a: sig-atoms : ~a~n" relation sig-atoms)
-       ;(printf "~a: raw upper : ~a~n" relation (get-bound-upper relation))
-       ;(printf "~a: raw lower : ~a~n" relation (get-bound-lower relation))
       (: upper (Listof Tuple))
       (define upper                   
         (let ([upper-bound-value (get-bound-upper relation)]
@@ -987,13 +967,10 @@ Please declare a sufficient scope for ~a."
                                    relation) run-command
                               (get-blame-node run-spec relation))]
             [piecewise-bound-value
-             ;(printf "upper; bound-piecewise tuples: ~a~n" (PiecewiseBound-tuples bound-piecewise))
              ; for each admissible atom (taken from first component of the relation's declaration):
              ;   Where a piecewise entry exists: intersect with cartesian product of restricted universe.
              ;   otherwise: include the full cartesian-product for the restriction outside of that domain
              (define pw-domain (PiecewiseBound-atoms piecewise-bound-value))
-             ;(printf "upper; sig-atoms[domain]: ~a~n" (first sig-atoms))
-             ;(printf "upper; pw-domain: ~a~n" pw-domain) ; ISSUE: this is pre-eval :/ store post-eval?
              
              ; If the piecewise domain is not contained by the sig atoms, something has gone wrong;
              ; perhaps the sig was defined by numeric scope?
@@ -1016,8 +993,6 @@ Please declare a sufficient scope for ~a."
 
              (define in-domain (set-intersect (list->set (PiecewiseBound-tuples piecewise-bound-value))
                                               (list->set (apply cartesian-product sig-atoms))))
-             ;(printf "upper; sig-atoms product was: ~a~n" (apply cartesian-product sig-atoms))
-             ;(printf "upper; in-domain: ~a~n" in-domain)
              (define out-of-domain (list->set
                                     (filter (lambda ([tup : Tuple]
                                     )
@@ -1047,7 +1022,6 @@ Please declare a sufficient scope for ~a."
              ; to the sig-sequence in relation's declaration
              (apply cartesian-product sig-atoms)])))
       
-      ;(define upper (set->list (set-intersect (get-bound-upper relation) (list->set (apply cartesian-product sig-atoms)))))
 
       ; Piecewise lower bounds were handled in sigs-functional, before send-to-solver is called.
       (define lower                   
@@ -1055,9 +1029,7 @@ Please declare a sufficient scope for ~a."
             (if bound-lower
                 (set->list (set-union bound-lower (list->set empty)))
                 empty)))      
-      ;(define lower (set->list (set-union (get-bound-lower relation) (list->set empty))))
 
-      ;(printf "~a:~nrefined upper: ~a~nrefined lower: ~a~n" relation upper lower)
       (unless (subset? (list->set lower) (list->set upper))
         (define problem-tuples (set->list (set-subtract (list->set lower) (list->set upper))))
         (define owner-sig (first sigs))

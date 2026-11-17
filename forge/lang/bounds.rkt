@@ -18,7 +18,6 @@
 ; Error-checking constructors for bounds
 (: make-bound (-> node/expr/relation (Listof Tuple) (Listof Tuple) bound))
 (define (make-bound relation lower upper)
-  ;(printf "make-bound; upper was: ~a~n" upper)
   (for ([t (in-list lower)])
     (unless (and (list? t) (= (length t) (relation-arity relation)))
       (raise-arguments-error 'make-bound (format "lower bounds must contain tuples of arity ~a" (relation-arity relation)) "lower" t)))
@@ -38,10 +37,6 @@
 (define (make-upper-bound relation contents)
   (make-bound relation '() contents))
 
-; (: make-product-bound (-> node/expr/relation (Listof Tuple) (Listof Tuple) * bound))
-; (define (make-product-bound relation col1 . columns)
-;   (define ub (apply cartesian-product col1 columns))
-;   (make-bound relation '() ub))
 
 ;; for/first is not supported by the typechecker??
 ;; but for/last is???

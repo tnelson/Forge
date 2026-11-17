@@ -53,8 +53,6 @@
 (provide ;reset-run-name-history! 
          stop-solver-process!)
 
-; ; Instance analysis functions
-; (provide is-sat? is-unsat?)
 
 ; ; export AST macros and struct definitions (for matching)
 ; ; Make sure that nothing is double-provided
@@ -123,7 +121,6 @@
         #:extends (or/c Sig? #f)
         #:info (or/c nodeinfo? #f))
        Sig?)
-  ; (check-temporal-for-var is-var name)
   (define name (or raw-name (gensym 'sig)))
   
   (when (and one lone)
@@ -176,7 +173,6 @@
                sig-or-thunk))
          sigs))
 
-  ; (check-temporal-for-var is-var name)
   (Relation node-info ; info
         
             (length sigs-thunks) ; arity
@@ -259,7 +255,6 @@
 
   (when (>= (get-verbosity) VERBOSITY_HIGH)
     (printf "  do-bind: ~a~n" bind))
-  ;(when (node? bind) (printf "bind info: ~a~n" (nodeinfo-loc (node-info bind))))
 
   ; In case of error, highlight an AST node if able. Otherwise, do the best we can:
   (define (fail-unless msg [condition #f])    
@@ -781,7 +776,6 @@
             (Target-distance target))]
           [else
            target]))
-  ;(printf "cleaned-target: ~a~n" cleaned-target)
   
   (define spec (Run-spec state preds scope bounds-with-piecewise-lower cleaned-target))        
   (define-values (result atoms server-ports kodkod-currents kodkod-bounds) 
