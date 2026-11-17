@@ -1,6 +1,6 @@
 native solver libraries for windows-arm64
-built (UTC):      2026-11-17T15:56:00Z
-pardinus commit:  88e1a8cacf272c3a2d3683380c191b86d0f77cdc (tracked files: clean)
+built (UTC):      2026-11-17T18:03:15Z
+pardinus commit:  279e1514a6586b6fb62e7b52a739035d085d03d3 (tracked files: clean)
 base image:       ubuntu:22.04@sha256:076e7bf82319619f28dd0aa9c02ab34b055ad37100395b4f49a2ffba04fb5e11
 builder image:    pardinus-windows-builder:67e27bddb5b9-aarch64
 build OS:         Ubuntu 22.04.5 LTS, aarch64
@@ -23,4 +23,4 @@ libraries (sha256, bytes, name):
   03b3cebafc069d992fd1ce5595a7811cd2a495dc583a88625d3b27df672b2c48  466944  glucose.dll
   2a2e362620cd68b101c74d507384c390d89451671656a918347e95ed977ea6b3  577536  lingeling.dll
   9c971e4f9f17c43665ba3ff9c7e012bdb24f8c0f9289b1e2bf4168ab646e3598  442880  minisat.dll
-  a90a2eaaae1fcb5817bac64082208389f107c61b4aff98b89fecd0b1b40d0236  421888  minisatprover.dll
+  022249957bde6110fe438ed3ace002ab5b5804d53979201aa2b4aee2e9ffd7bc  421888  minisatprover.dll

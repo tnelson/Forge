@@ -4,6 +4,10 @@
 
 `cd jni` and then `./build-all-from-macos.sh <forge-repo-location>`. This should build everything; see the docs inside the `jni` folder of Forge's Pardinus fork.
 
+## Agents Note
+
+Much of the scripting for these builds was authored by Claude Opus and other agents. 
+
 ## Building native libraries (if needed)
 
 These include Glucose, lingeling, minisat, and minisatprover.

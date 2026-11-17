@@ -1,6 +1,6 @@
 native solver libraries for linux-aarch64
-built (UTC):      2026-11-17T15:55:43Z
-pardinus commit:  88e1a8cacf272c3a2d3683380c191b86d0f77cdc (tracked files: clean)
+built (UTC):      2026-11-17T18:02:52Z
+pardinus commit:  279e1514a6586b6fb62e7b52a739035d085d03d3 (tracked files: clean)
 base image:       ubuntu:20.04@sha256:8feb4d8ca5354def3d8fce243717141ce31e2c428701f6682bd2fafe15388214
 builder image:    pardinus-native-builder:eeae0a1272ab-aarch64
 build OS:         Ubuntu 20.04.6 LTS, glibc 2.31
