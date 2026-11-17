@@ -231,7 +231,7 @@
     ;; Bad option names
     (list "bad_option_name.frg" #rx"No such option")
     ;; Bad option types
-    (list "bad_option_type.frg" #rx"requires non-negative integer")
+    (list "bad_option_type.frg" #rx"requires an integer from 0 to 2")
     ;; Bad enum member (checked via option types)
     (list "bad_option_enum.frg" #rx"requires one of")
   ))

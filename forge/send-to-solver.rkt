@@ -596,8 +596,10 @@
 
   ; Try to partition `shared` atoms among children to avoid cardinality constraints.
   ; Returns a list of per-child atom slices if partition is feasible, or #f for fallback.
-  (: try-partition-shared (-> (Listof Sig) (Listof FAtom) (U (Listof (Listof FAtom)) False)))
-  (define (try-partition-shared children shared)
+  (: try-partition-shared (-> (Listof Sig) (Listof FAtom) (Listof FAtom) (U (Listof (Listof FAtom)) False)))
+  (define (try-partition-shared children shared parent-lower)
+    (define children-lower : (Listof FAtom)
+      (apply append (map (lambda ([c : Sig]) (ann (hash-ref lower-bounds c) (Listof FAtom))) children)))
     (define child-needs : (Listof Integer)
       (for/list : (Listof Integer)
         ([child (in-list children)])
@@ -609,6 +611,8 @@
       ; A child without an explicit scope gets no slice; it may use any of its parent's atoms. 
       [(ormap (lambda ([child : Sig]) (not (get-scope-upper child))) children) #f]
       [(> total-need (length shared)) #f]  ; children need more than available
+      ; The parent has atoms in its lower bound that aren't also in a child's lower bound (e.g., from `#Parent >= 3`)
+      [(not (andmap (lambda ([a : FAtom]) (member a children-lower)) parent-lower)) #f]
       [(not (set-empty? (set-intersect inst-relation-atoms (list->set shared)))) #f]  ; relation inst conflict
       [else
        ; Build per-child slices via take/drop
@@ -674,7 +678,7 @@ Please declare a sufficient scope for ~a."
     ; Partition is only attempted when shared is clean (no lower-bound atoms from siblings).
     (let ([children (get-children run-spec sig)])
       (unless (empty? children)
-        (define slices (and clean-shared? (try-partition-shared children shared)))
+        (define slices (and clean-shared? (try-partition-shared children shared curr-lower)))
         (if slices
             ; PARTITION: each child gets its own clean atom slice
             (for ([child (in-list children)]
@@ -772,6 +776,31 @@ Please declare a sufficient scope for ~a."
          run-command
          (get-blame-node run-spec child)))
       (hash-set! sibling-owner a child)))
+
+  ; Requirement: every atom that an abstract sig _must_ contain (i.e., in its lower bound) 
+  ; must fit in some child, or else the run is unsat (likely unintentionally).
+  (: check-abstract-sigs-covered (-> Void))
+  (define (check-abstract-sigs-covered)
+    (for ([parent (get-sigs run-spec)]
+          #:when (Sig-abstract parent))
+      (define children (get-children run-spec parent))
+      (define (child-upper [c : Sig]) : (Listof FAtom) (hash-ref upper-bounds c))
+      (define all-child-upper (remove-duplicates (apply append (map child-upper children))))
+      (define parent-lower : (Listof FAtom) (hash-ref lower-bounds parent))
+      (define uncovered (remove* all-child-upper parent-lower))
+      ; Were the uncovered atoms named in a partial instance, or generated from a scope?
+      (unless (or (empty? children) (empty? uncovered))
+        (raise-run-error
+         (if (member (first uncovered) all-user-atoms)
+             (format "Atom `~a is in abstract sig ~a, but not in any of its children (~a)."
+                     (first uncovered) (Sig-name parent)
+                     (string-join (map (lambda ([c : Sig]) (symbol->string (Sig-name c))) children) ", "))
+             (format "Abstract sig ~a must contain at least ~a atoms, but its children can contain at most ~a in total (~a)."
+                     (Sig-name parent) (length parent-lower) (length all-child-upper)
+                     (string-join (map (lambda ([c : Sig]) (format "~a: ~a" (Sig-name c) (length (child-upper c)))) children) ", ")))
+         run-command
+         (get-blame-node run-spec parent)))))
+  (check-abstract-sigs-covered)
 
   ; Set the bounds for the Int built-in sig
   (: int-atoms (Listof FAtom))

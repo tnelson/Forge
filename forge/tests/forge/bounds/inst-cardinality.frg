@@ -56,3 +56,12 @@ test expect instCardinality {
   declared_conflict: { } for 3 A for { #A = 6 } is forge_error "max scope on A was less than numeric min scope"
   inst_conflict:     { } for { #A <= 2  #A >= 3 } is forge_error "max scope on A was less than numeric min scope"
 }
+
+// The atoms required by a lower size bound from a partial instance 
+// may belong to a child with a scope (or one/lone).
+sig L {}
+lone sig LC extends L {}
+
+test expect instCardinalityChild {
+  geq_lone_child_sat: { #L = 2 and some LC } for 3 L for { #L >= 2 } is sat
+}

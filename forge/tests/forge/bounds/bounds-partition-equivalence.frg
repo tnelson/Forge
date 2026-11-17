@@ -157,7 +157,8 @@ test expect Equiv_Scenario5 {
     -- Slack=1: exact 2+2=4 != 5, so exact is unsat.
     -- Non-exact: solver can use 4 of 5 Slot5 atoms, so sat.
     s5_exact_slack: { scenario5 }
-        for exactly 5 Slot5, exactly 2 TypeA5, exactly 2 TypeB5 is unsat
+        for exactly 5 Slot5, exactly 2 TypeA5, exactly 2 TypeB5
+        is forge_error "Abstract sig Slot5 must contain at least 5 atoms, but its children can contain at most 4 in total"
 
     s5_nonexact_slack: { scenario5 }
         for 5 Slot5, 2 TypeA5, 2 TypeB5 is sat

@@ -161,7 +161,7 @@ test expect multiplicityViolations {
     Animal = `A + `B + `C
     Dog = `A
     Cat = `B
-  } is unsat
+  } is forge_error "Atom `C is in abstract sig Animal, but not in any of its children"
 
   sibling_overlap: {some Parent} for {
     Parent = `A + `B
