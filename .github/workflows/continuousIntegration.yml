@@ -7,6 +7,9 @@ on:
     - main
     - dev
 
+# This file is somewhat long, because (a) there are a few different places in Forge that need 
+# checking in different ways; and (b) we want to check for Linux, MacOS, and Windows. 
+
 jobs:
   # Ensure that all Forge tests are included in the CI run. 
   check-test-files-included:
@@ -116,6 +119,11 @@ jobs:
         sudo apt-get update -qq
         sudo apt-get install -y -qq libcairo2-dev libpango1.0-dev libgdk-pixbuf-2.0-dev
 
+    # Install picosat as a mock custom solver, to test the custom-solver workflow.
+    - name: Install picosat
+      if: matrix.custom-run
+      run: sudo apt-get install -y -qq picosat
+
     - name: Install cvc5
       if: matrix.name == 'smt'
       run: |
@@ -149,7 +157,7 @@ jobs:
       if: ${{ matrix.custom-run }}
       run: |
         cd forge/${{ matrix.test-dir }}
-        chmod +x run.sh subdir/run.sh
+        chmod +x run.sh subdir/run.sh run_picosat.sh
         exitCode=0
         for f in *.frg; do
           echo "Running $f..."
@@ -158,6 +166,11 @@ jobs:
             exitCode=1
           fi
         done
+        echo "Running custom_solver_next.rkt..."
+        if ! raco test custom_solver_next.rkt; then
+          echo "FAILED: custom_solver_next.rkt"
+          exitCode=1
+        fi
         exit $exitCode
 
     # Re-test custom solvers within `forge/`. This is meant to check for a regression
