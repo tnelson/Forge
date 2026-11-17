@@ -64,6 +64,7 @@ jobs:
       uses: Bogdanp/setup-racket@v1.14
       with:
         version: '9.3'
+        distribution: 'minimal'
 
     - name: Install Forge
       run: raco pkg install --auto --no-docs ./forge
@@ -107,6 +108,7 @@ jobs:
       uses: Bogdanp/setup-racket@v1.14
       with:
         version: '9.3'
+        distribution: 'minimal'
 
     - name: Setup Java
       uses: actions/setup-java@v4
@@ -135,8 +137,18 @@ jobs:
       uses: actions/cache@v4
       with:
         path: ~/.local/share/racket
-        key: racket-pkgs-${{ hashFiles('forge/info.rkt') }}
-        restore-keys: racket-pkgs-
+        key: racket-pkgs-minimal-${{ hashFiles('forge/info.rkt') }}
+        restore-keys: racket-pkgs-minimal-
+
+    # Recompile only files whose source or dependencies changed.
+    - name: Cache Forge compiled files
+      uses: actions/cache@v4
+      with:
+        path: |
+          forge/**/compiled
+          !forge/tests/**
+        key: forge-compiled-${{ runner.os }}-racket9.3-${{ hashFiles('forge/**/*.rkt', '!forge/tests/**') }}
+        restore-keys: forge-compiled-${{ runner.os }}-racket9.3-
 
     - name: Install Forge
       run: |
@@ -203,6 +215,7 @@ jobs:
       uses: Bogdanp/setup-racket@v1.14
       with:
         version: '9.3'
+        distribution: 'minimal'
 
     - name: Setup Java
       uses: actions/setup-java@v4
@@ -214,8 +227,8 @@ jobs:
       uses: actions/cache@v4
       with:
         path: ~/AppData/Roaming/Racket
-        key: racket-pkgs-win-${{ hashFiles('forge/info.rkt') }}
-        restore-keys: racket-pkgs-win-
+        key: racket-pkgs-minimal-win-${{ hashFiles('forge/info.rkt') }}
+        restore-keys: racket-pkgs-minimal-win-
 
     - name: Install Forge
       run: |
@@ -283,6 +296,7 @@ jobs:
       uses: Bogdanp/setup-racket@v1.14
       with:
         version: '9.3'
+        distribution: 'minimal'
 
     - name: Setup Java
       uses: actions/setup-java@v4
@@ -294,8 +308,18 @@ jobs:
       uses: actions/cache@v4
       with:
         path: ~/Library/Racket
-        key: racket-pkgs-mac-${{ hashFiles('forge/info.rkt') }}
-        restore-keys: racket-pkgs-mac-
+        key: racket-pkgs-minimal-mac-${{ hashFiles('forge/info.rkt') }}
+        restore-keys: racket-pkgs-minimal-mac-
+
+    # Recompile only files whose source or dependencies changed.
+    - name: Cache Forge compiled files
+      uses: actions/cache@v4
+      with:
+        path: |
+          forge/**/compiled
+          !forge/tests/**
+        key: forge-compiled-${{ runner.os }}-racket9.3-${{ hashFiles('forge/**/*.rkt', '!forge/tests/**') }}
+        restore-keys: forge-compiled-${{ runner.os }}-racket9.3-
 
     - name: Install Forge
       run: |

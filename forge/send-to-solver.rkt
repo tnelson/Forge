@@ -307,6 +307,11 @@
     (append (get-sig-size-preds run-spec run-command sig-to-bound)
             (get-relation-preds run-spec)
             (get-extender-preds run-spec)
+            ; Pardinus disregards every sig that doesn't appear in some constraint. 
+            ; We want to see possible variations of that sig value, so "mention" everything.
+            (for/list : (Listof node/formula) ([s (get-sigs run-spec)]
+                                               #:unless (equal? (Sig-name s) 'Int))
+              (in/func #:info (nodeinfo (nodeinfo-loc (node-info s)) 'checklangNoCheck #f) s s))
             break-preds))
   (define conjuncts-implicit-constraints
     (apply append (map maybe-and->list raw-implicit-constraints)))
