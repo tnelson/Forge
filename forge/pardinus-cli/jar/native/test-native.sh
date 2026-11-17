@@ -77,8 +77,9 @@ echo ""
 echo "=== MiniSatProver temp files ($NAME) ==="
 PROBE="$(mktemp -d "${TMPDIR:-/tmp}/forge-native-probe.XXXXXX")"
 trap 'rm -rf "$CLASS_DIR" "$PROBE"' EXIT
+#  -XX:-UsePerfData stops the JVM creating a file in temp folder that interferes with test 
 run_probe() { TMPDIR="$PROBE" TMP="$(to_java_path "$PROBE")" TEMP="$(to_java_path "$PROBE")" \
-  "$JAVA_BIN" -Djava.library.path="$(to_java_path "$LIBS")" -cp "$CP$SEP$(to_java_path "$CLASS_DIR")" NativeSolverTest "$@"; }
+  "$JAVA_BIN" -XX:-UsePerfData -Djava.library.path="$(to_java_path "$LIBS")" -cp "$CP$SEP$(to_java_path "$CLASS_DIR")" NativeSolverTest "$@"; }
 run_probe > /dev/null
 [ -z "$(ls -A "$PROBE")" ] || die "MiniSatProver left temp files after a normal exit: $(ls "$PROBE")"
 run_probe --hold-prover > "$PROBE.out" 2>&1 &
