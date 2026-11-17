@@ -1109,30 +1109,45 @@ Please declare a sufficient scope for ~a."
       ; (This can sometimes happen when a sig extends another and there is ambiguity
       ;  in how bounds should be resolved. e.g., sig A {} sig B extends A {}
       ;  run {} for 4 A, 3 B.
+      (define need-lower? (and int-lower (> int-lower bound-lower-size)))
+      (define need-upper? (and int-upper (< int-upper bound-upper-size)))
+      
+      ; Guard against overflow when we need to use cardinality constraints for scopes. 
+      (define may-wrap? (>= bound-upper-size max-int))
+      (when (and (or need-lower? need-upper?) (>= bound-upper-size (* 2 max-int)))
+        (raise-run-error (format (string-append "Too many possible atoms for given bit width; "
+                                                "Sig: ~a, Possible atoms: ~a, Max-int: ~a")
+                                 (Sig-name sig) bound-upper-size (sub1 max-int))
+                         run-command
+                         (get-blame-node run-spec sig)))
+      (define card (card/func #:info info sig))
+      (define card-negative (int</func #:info info card (int/func #:info info 0)))
       (append
-        (if (and int-lower (> int-lower bound-lower-size))
+        (if (and need-lower? int-lower)
             (let ()
               (unless (< int-lower max-int)
-                (raise-run-error (format (string-append "Lower bound too large for given BitWidth; "
+                (raise-run-error (format (string-append "Lower bound too large for given bit width; "
                                                         "Sig: ~a, Lower-bound: ~a, Max-int: ~a")
                                          sig int-lower (sub1 max-int))
                                  run-command
                                  (get-blame-node run-spec sig)))
-              (list (||/func #:info info
-                             (int</func #:info info (int/func #:info info int-lower) (card/func #:info info sig))
-                             (int=/func #:info info (int/func #:info info int-lower) (card/func #:info info sig)))))
+              (define at-least (||/func #:info info
+                                        (int</func #:info info (int/func #:info info int-lower) card)
+                                        (int=/func #:info info (int/func #:info info int-lower) card)))
+              (list (if may-wrap? (||/func #:info info at-least card-negative) at-least)))
             (list))
-        (if (and int-upper (< int-upper bound-upper-size))
+        (if (and need-upper? int-upper)
             (let ()
               (unless (< int-upper max-int)
-                (raise-run-error (format (string-append "Upper bound too large for given BitWidth; "
+                (raise-run-error (format (string-append "Upper bound too large for given bit width; "
                                                         "Sig: ~a, Upper-bound: ~a, Max-int: ~a")
                                          sig int-upper (sub1 max-int))
                                  run-command
                                  (get-blame-node run-spec sig)))
-              (list (||/func #:info info
-                             (int</func #:info info (card/func #:info info sig) (int/func #:info info int-upper))
-                             (int=/func #:info info (card/func #:info info sig) (int/func #:info info int-upper)))))
+              (define at-most (||/func #:info info
+                                       (int</func #:info info card (int/func #:info info int-upper))
+                                       (int=/func #:info info card (int/func #:info info int-upper))))
+              (list (if may-wrap? (&&/func #:info info at-most (!/func #:info info card-negative)) at-most)))
             (list)))))
   (apply append lists))
 

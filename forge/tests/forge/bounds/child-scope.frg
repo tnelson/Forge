@@ -43,3 +43,15 @@ test expect withOneSiblings {
   qn2_in_6_sat:          { #Qn = 2 } for 6 is sat
   qn3_in_6_unsat:        { #Qn = 3 } for 6 is unsat
 }
+
+// Forge sometimes uses cardinality constraints to encode scopes. 
+// When this happens, we must guard against overflow.
+abstract sig Animal {}
+lone sig Dog extends Animal {}
+sig Cat extends Animal {}
+
+test expect cardinalityWrap {
+  lone_child_wrap_unsat: { no Cat } for exactly 8 Animal is unsat
+  too_many_atoms: { no Cat } 
+    for exactly 16 Animal is forge_error "Too many possible atoms for given bit width; Sig: Dog, Possible atoms: 16"
+}
