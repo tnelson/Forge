@@ -50,4 +50,6 @@
                               "tests/error/"
                               #rx"domains/abac/*"
                               #rx"domains/crypto/examples/*"))
-(define build-deps '("rackunit-typed"))
+(define build-deps '("rackunit-typed"
+                     "macro-debugger-text-lib" ; term-size, used in ifte-performance tests
+                     ))

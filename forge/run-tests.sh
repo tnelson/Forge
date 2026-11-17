@@ -19,8 +19,10 @@ testDir=$1
 # In "basic" regular expressions, use the backslashed versions of "(", ")", and "|"
 # Also, apply the pattern deeper than just one directory level (handle error/loc/*.frg)
 #doNotTestPattern="\(error\|srclocs\)/[^/]*\\.frg"
-doNotTestPattern="\(error\|srclocs\|helpers\)/.*\\.frg"
-# ^ error/srclocs: checked by tests/error/main.rkt; helpers: imported by other tests, not run directly
+doNotTestPattern="\(error\|srclocs\|helpers\|ast-parsing\)/.*\\.frg\|target/tomf[^/]*\\.frg"
+# ^ error/srclocs: checked by tests/error/main.rkt 
+# ^ helpers: imported by other tests, not run directly
+# ^ ast-parsing/*.frg and target/tomf*.frg exist to be loaded by an actual test in Racket
 
 smtTestPattern=".*/smtlibtor/.*"
 

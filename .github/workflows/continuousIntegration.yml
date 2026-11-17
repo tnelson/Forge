@@ -79,7 +79,6 @@ jobs:
   # Run Forge's main test suite in default (Linux) environment.
   # Includes custom-solver tests for Linux.
   test-forge:
-    needs: check-test-files-included
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -204,7 +203,6 @@ jobs:
 
   # Test custom solvers on Windows.
   test-custom-solver-win:
-    needs: check-test-files-included
     runs-on: windows-latest
     name: test-custom-solver-win
     steps:
@@ -285,7 +283,6 @@ jobs:
 
   # Test custom solvers on macOS.
   test-custom-solver-mac:
-    needs: check-test-files-included
     runs-on: macos-latest
     name: test-custom-solver-mac
     steps:
