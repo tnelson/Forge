@@ -1,6 +1,6 @@
 native solver libraries for windows-x86_64
-built (UTC):      2026-11-16T14:13:59Z
-pardinus commit:  e8c39c5c59f4abee8caa9b2ee1a8e2654f6512d1 (tracked files: clean)
+built (UTC):      2026-11-17T15:55:52Z
+pardinus commit:  88e1a8cacf272c3a2d3683380c191b86d0f77cdc (tracked files: clean)
 base image:       ubuntu:22.04@sha256:076e7bf82319619f28dd0aa9c02ab34b055ad37100395b4f49a2ffba04fb5e11
 builder image:    pardinus-windows-builder:67e27bddb5b9-aarch64
 build OS:         Ubuntu 22.04.5 LTS, aarch64
@@ -13,7 +13,7 @@ pinned sources (sources.lock):
   glucose    git     fbf47723e7f2f03847bef3418e9a3df90dacc34b                          glucose/glucose-syrup
   lingeling  sha256  9d1fc5d5804fdc41cb3b8cb2dedabbd3fb27e639b3b1f57e157153665828fb81  lingeling/lingeling-ayv-86bf266-140429.zip
   minisat    git     14c78206cd12d1d36b7e042fa758747c135670a4                          minisat/minisat
-  minisatp   git     7377e0bccf8bafcb4f3c4dcf108e51cdb3faa7de                          minisatp/minisatp
+  minisatp   vendored 7377e0bccf8bafcb4f3c4dcf108e51cdb3faa7de                         minisatp/minisatp
   llvm-mingw-x86_64   sha256  919380403de87dca3c581c2053230cd298af5e891286628ba0613b7fed370926  llvm-mingw-20261104-ucrt-ubuntu-22.04-x86_64.tar.xz
   llvm-mingw-aarch64  sha256  595e95bdffabfc62559fe26e30bdfbccf277cbaed4902793555015ee47306b94  llvm-mingw-20261104-ucrt-ubuntu-22.04-aarch64.tar.xz
   jdk-jni-h           sha256  1266aea5b9f5d5db1cb6f8e5c6c43cfa7f80bc4f72d7fe42c6131bb939dc70f4  jni.h
@@ -23,4 +23,4 @@ libraries (sha256, bytes, name):
   99cdcf847191454ee9d6cc3a6600554182557df94561c4e46e9cae9d5b9006dd  591872  glucose.dll
   85e140e72caa72e53d5024edcf7344fc40795a2e143a6264cb7c91231ce7ad80  654848  lingeling.dll
   ced3344728c6a8a71fddbbbc4580316fb7c9b349a48c8da9afbb8090dee1fc6e  563712  minisat.dll
-  a7d1d335ffc37e35e7eb1c04709cd18165af203910f15063997ff16e6fc763a0  545280  minisatprover.dll
+  3a782264c07257f8f7d416a7398b62f2404f5c361fe6b7a7897f71751cdd9776  545280  minisatprover.dll

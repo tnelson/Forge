@@ -1,6 +1,6 @@
 native solver libraries for linux-x86_64
-built (UTC):      2026-11-08T18:12:07Z
-pardinus commit:  8ef6b7401ee0497fe231d05626d4ed7d91f2c461 (tracked files: clean)
+built (UTC):      2026-11-17T15:55:24Z
+pardinus commit:  88e1a8cacf272c3a2d3683380c191b86d0f77cdc (tracked files: clean)
 base image:       ubuntu:20.04@sha256:8feb4d8ca5354def3d8fce243717141ce31e2c428701f6682bd2fafe15388214
 builder image:    pardinus-native-builder:eeae0a1272ab-x86_64
 build OS:         Ubuntu 20.04.6 LTS, glibc 2.31
@@ -14,17 +14,17 @@ glibc ceiling:    2.31
 
 pinned sources (sources.lock):
   waf        sha256  93909bca823a675f9f40af7c65b24887c3a3c0efdf411ff1978ba827194bdeb0  waf-2.0.24
-  glucose    sha256  8dba2a417fd9f1170f1b7d14547688ee12c92a980e0b009e85aec1a5a4a0052f  glucose/glucose-syrup.tgz
+  glucose    git     fbf47723e7f2f03847bef3418e9a3df90dacc34b                          glucose/glucose-syrup
   lingeling  sha256  9d1fc5d5804fdc41cb3b8cb2dedabbd3fb27e639b3b1f57e157153665828fb81  lingeling/lingeling-ayv-86bf266-140429.zip
   minisat    git     14c78206cd12d1d36b7e042fa758747c135670a4                          minisat/minisat
-  minisatp   git     7377e0bccf8bafcb4f3c4dcf108e51cdb3faa7de                          minisatp/minisatp
+  minisatp   vendored 7377e0bccf8bafcb4f3c4dcf108e51cdb3faa7de                         minisatp/minisatp
   llvm-mingw-x86_64   sha256  919380403de87dca3c581c2053230cd298af5e891286628ba0613b7fed370926  llvm-mingw-20261104-ucrt-ubuntu-22.04-x86_64.tar.xz
   llvm-mingw-aarch64  sha256  595e95bdffabfc62559fe26e30bdfbccf277cbaed4902793555015ee47306b94  llvm-mingw-20261104-ucrt-ubuntu-22.04-aarch64.tar.xz
   jdk-jni-h           sha256  1266aea5b9f5d5db1cb6f8e5c6c43cfa7f80bc4f72d7fe42c6131bb939dc70f4  jni.h
   jdk-jni-md-windows  sha256  dbf96659c4c840b15ef40237db0c65657eca7a70904225fc984deb38999df515  jni_md.h
 
 libraries (sha256, bytes, name):
-  0afee589972a9ffaebc723b3ceeb1489ae8074c689bb0e856ecb58ef982bb14d  1886872  libglucose.so
+  eae6f39c9ada9bec588fcab61b7dc9ec301b089c0b09df5a2c64cae221721b9f  1909288  libglucose.so
   3a38b9a62cf43e446dc2003f61512fcd076ba7a9e3d06266fba2984ed2db10ae  616120  liblingeling.so
   9ed5d685d138dda1aabe1a13e0885534130a7d6b4a792b913f97d71eb836f71e  1873784  libminisat.so
-  3a26650cef69e4c5fdad8cb325c8b283077be17ae9c9b97a86f31832015a2d64  1848128  libminisatprover.so
+  219402de499a75debb6f41015f6d85ecda50b702898f92f8b399e406597ee712  1848128  libminisatprover.so

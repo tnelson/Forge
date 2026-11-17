@@ -65,7 +65,23 @@ public class NativeSolverTest {
                 name, factory.prover() ? "; unsat core non-empty" : ""));
     }
 
-    public static void main(String[] args) {
+    // temp file is deleted properly even if the process is killed.
+    static void holdProver() throws InterruptedException {
+        SATSolver s = SATFactory.MiniSatProver.instance();
+        s.addVariables(2);
+        s.addClause(new int[] {1, 2});
+        s.addClause(new int[] {-1, 2});
+        s.solve();
+        System.out.println("READY");
+        System.out.flush();
+        Thread.sleep(600_000);
+    }
+
+    public static void main(String[] args) throws InterruptedException {
+        if (args.length > 0 && args[0].equals("--hold-prover")) {
+            holdProver();
+            return;
+        }
         check("MiniSat", SATFactory.MiniSat);
         check("MiniSatProver", SATFactory.MiniSatProver);
         check("Glucose", SATFactory.Glucose);
