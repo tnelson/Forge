@@ -65,3 +65,11 @@ lone sig LC extends L {}
 test expect instCardinalityChild {
   geq_lone_child_sat: { #L = 2 and some LC } for 3 L for { #L >= 2 } is sat
 }
+
+// Hoist `#Int = k` if it appears. We want to avoid silent failure due to confusion 
+// over binding expressions (evaluated in order) vs. constraints (order doesn't matter). 
+sig I { r: set Int }
+
+test expect instBitwidth {
+  bitwidth_last_sat: { some i: I | 12 in i.r } for { I = `I0  r in I -> Int  #Int = 5 } is sat
+}

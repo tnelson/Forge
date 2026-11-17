@@ -210,4 +210,10 @@ test expect piecewiseErrors {
     Node = `A + `B
     `A.edges ni `Z
   } is forge_error "`Z not in bounds for sig Node"
+
+  // Binding expressions are evaluated in order. 
+  used_before_bound: {some Node} for {
+    edges in Node -> Node
+    Node = `A + `B
+  } is forge_error "Node is used before it is bound in this inst"
 }

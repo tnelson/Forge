@@ -16,7 +16,7 @@
 (require (prefix-in @ (only-in racket max min - display set +))
          (only-in racket/function thunk)
          (only-in racket/math nonnegative-integer?)
-         (only-in racket/list first second range rest empty flatten)
+         (only-in racket/list first second range rest empty flatten partition)
          (only-in racket/set list->set set->list set-union set-intersect subset? set-count)
          (only-in racket/hash hash-union))
 (require (only-in syntax/srcloc build-source-location-syntax))
@@ -225,7 +225,10 @@
 (define/contract (safe-fast-eval-exp e binding bitwidth [safe #t])
   (->* (node/expr? hash? number?) (boolean?)
        (listof (listof (or/c number? symbol?))))
-  (define result (eval-exp e binding bitwidth safe))
+  (define result
+    (parameterize ([undefined-value-message
+                    (lambda (name) (format "~a is used before it is bound in this inst. Bind ~a before this line." name name))])
+      (eval-exp e binding bitwidth safe)))
   (de-integer-atomize result))
 
 (define (safe-fast-eval-int-expr ie binding bitwidth)
@@ -343,10 +346,17 @@
      (match left
        [(node/int/op-on-exprs/card c-info (list left-rel))
         (let* ([exact (safe-fast-eval-int-expr right (Bound-tbindings bound) SUFFICIENT-INT-BOUND)]
-               [new-scope (if (equal? (relation-name left-rel) "Int")
+               [int? (equal? (relation-name left-rel) "Int")]
+               [new-scope (if int?
                               (update-bitwidth scope exact)
-                              (update-scope scope left-rel (Range exact exact) bind))])
-          (values new-scope bound))]
+                              (update-scope scope left-rel (Range exact exact) bind))]
+               ; Later bounding-expressions are evaluated _after_ any `#Int = k` binding. 
+               [new-bound (if int?
+                              (struct-copy Bound bound
+                                           [tbindings (hash-union (Bound-tbindings bound) (int-tbindings exact)
+                                                                  #:combine (lambda (old new) new))])
+                              bound)])
+          (values new-scope new-bound))]
        [_ (fail-unless "int=")])]
 
     ; Non-equality cardinality bounds, e.g., `#rel <= n`.
@@ -448,15 +458,33 @@
   (-> (listof (or/c node/formula? node/breaking/op? Inst?))
       Inst?)
   
+  ; Apply `#Int = k` before any other binding expression.
+  (define (bitwidth-bind? bind)
+    (match bind
+      [(node/formula/op-on-ints/int= _ (list (node/int/op-on-exprs/card _ (list rel)) _))
+       (equal? (relation-name rel) "Int")]
+      [_ #f]))
+
+  (define-values (bitwidth-binds other-binds) (partition bitwidth-bind? binds))
   (define (inst-func scope bound)
     (define-values (new-scope new-bound) 
       (for/fold ([scope scope] [bound bound])
-                ([bind binds])
-        ;(printf "*** In inst-func do-bind ~a~n" bind)
+                ([bind (append bitwidth-binds other-binds)])
         (do-bind bind scope bound)))
     (values new-scope new-bound)) 
 
   (Inst inst-func))
+
+; Bindings for Int and succ(essor) at a given bitwidth
+(define (int-tbindings bitwidth)
+  ; Positive maxint: 2^(bw-1) - 1
+  ; Negative minint: 2^(bw-1)
+  ; Keep in mind range is *exclusive* of upper, hence adding 1 back.
+  (define max-int (sub1 (expt 2 (sub1 bitwidth))))
+  (define min-int (@- (expt 2 (sub1 bitwidth))))
+  (define ints (map int-atom (range min-int (@+ 1 max-int))))
+  (hash Int (map list ints)
+        succ (map list (reverse (rest (reverse ints))) (rest ints))))
 
 (define (update-bitwidth base-scope bitwidth)
   (-> Scope? nonnegative-integer?
@@ -626,20 +654,10 @@
              scope])))
 
   (define/contract default-bounds Bound?
-    (let* ([bitwidth (Scope-bitwidth scope-with-ones)]
-           ; Positive maxint: 2^(bw-1) - 1
-           ; Negative minint: 2^(bw-1)
-           ; Keep in mind range is *exclusive* of upper, hence adding 1 back.
-           [max-int (sub1 (expt 2 (sub1 (or bitwidth DEFAULT-BITWIDTH))))]
-           [min-int (@- (expt 2 (sub1 (or bitwidth DEFAULT-BITWIDTH))))]
-           [ints (map int-atom (range min-int (@+ 1 max-int)))]
-           [succs (map list (reverse (rest (reverse ints)))
-                       (rest ints))])
-      (Bound (hash)
-             (hash Int (map list ints)
-                   succ succs)
-             (hash)
-             (hash))))
+    (Bound (hash)
+           (int-tbindings (or (Scope-bitwidth scope-with-ones) DEFAULT-BITWIDTH))
+           (hash)
+           (hash)))
 
   (define/contract wrapped-bounds-inst Inst?
     (if (Inst? bounds-input)

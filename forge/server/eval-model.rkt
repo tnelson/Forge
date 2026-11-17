@@ -15,10 +15,14 @@
 (require forge/shared
          (prefix-in ast: forge/lang/ast))
 
-(provide eval-exp eval-unknown eval-int-expr model->binding)
+(provide eval-exp eval-unknown eval-int-expr model->binding undefined-value-message)
 (provide int-atom int-atom->string int-atom? int-atom-n ->string)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+; Generic error message for an expression that doesn't denote a value. 
+(define undefined-value-message
+  (make-parameter (lambda (name) (format "~a has no value in this context." name))))
 
 ; Separate structure for binding int atoms so they don't collide with int values
 ; This is important for debugging via this library, since "5" may be either an
@@ -179,7 +183,8 @@
                       ; Otherwise, If this is an unsafe evaluation, just return the value
                       [(not safe) id]
                       ; Otherwise, if this is a safe evaluation, throw an error
-                      [else (ast:raise-forge-error #:msg (format "Value of expression ~a is not defined in this context." id)
+                      [else (ast:raise-forge-error #:msg ((undefined-value-message)
+                                                          (if (ast:node/expr/relation? id) (ast:relation-name id) id))
                                                #:context id)])]
                    [_ (ast:raise-forge-error #:msg "Not a supported expression for Racket-side evaluation"
                                          #:context exp)]))
