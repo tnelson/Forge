@@ -727,13 +727,14 @@
           [(member 'expected '(sat unsat unknown))           
            run-stx
            (define first-instance (tree:get-value (Run-result name)))
-           (if (not (equal? (if (Sat? first-instance) 'sat 'unsat) 'expected))
+           (define actual (cond [(Sat? first-instance) 'sat]
+                                [(Unsat? first-instance) 'unsat]
+                                [(Unknown? first-instance) 'unknown]))
+           (if (not (equal? actual 'expected))
                (report-test-failure
                 #:name 'name
                 #:msg (format "Failed test ~a. Expected ~a, got ~a.~a"
-                              'name 'expected (cond [(Sat? first-instance) 'sat]
-                                                    [(Unsat? first-instance) 'unsat]
-                                                    [(Unknown? first-instance) 'unknown])
+                              'name 'expected actual
                               ; Report additional info for Sat and Unsat. If Unknown, report nothing.
                               (cond [(Sat? first-instance)
                                      (format " Found instance ~a" first-instance)]

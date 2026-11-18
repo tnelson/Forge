@@ -931,16 +931,19 @@
                                       #:backend backend
                                       #:target target
                                       #:command command)]
-            [first-instance (tree:get-value (Run-result test-run))])
-       (if (equal? (if (Sat? first-instance) 'sat 'unsat) expected)
+            [first-instance (tree:get-value (Run-result test-run))]
+            [actual (cond [(Sat? first-instance) 'sat]
+                          [(Unsat? first-instance) 'unsat]
+                          [else 'unknown])])
+       (if (equal? actual expected)
            (close-run test-run)
            (raise (format "Failed test ~a. Expected ~a, got ~a.~a"
-                          name expected (if (Sat? first-instance) 'sat 'unsat)
-                          (if (Sat? first-instance)
-                              (format " Found instance ~a" first-instance)
-                              (if (Unsat-core first-instance)
-                                  (format " Core: ~a" (Unsat-core first-instance))
-                                  ""))))))]
+                          name expected actual
+                          (cond [(Sat? first-instance)
+                                 (format " Found instance ~a" first-instance)]
+                                [(and (Unsat? first-instance) (Unsat-core first-instance))
+                                 (format " Core: ~a" (Unsat-core first-instance))]
+                                [else ""])))))]
     [else (raise (format "Illegal argument to test. Received ~a, expected sat, unsat, or checked."
                          expected))]))
 
