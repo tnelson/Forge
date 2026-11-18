@@ -197,13 +197,27 @@
 (: add-instance (-> sbound Void))
 (define (add-instance i) (cons! instances i)) 
 
+;; Bound-breaking an ordering on sig S assumes that S's upper-bound atoms are interchangeable.
+(: interchangeable? (-> node/expr/relation (Listof FAtom) Boolean (Setof FAtom) (Listof bound) Boolean))
+(define (interchangeable? s ups linear? named-atoms sig-bounds)
+  (define (all-or-none? [ts : (Listof Tuple)]) : Boolean
+    (define n (length (filter (lambda ([t : Tuple]) (member (car t) ups)) ts)))
+    (or (= n 0) (= n (length ups))))
+  (and (not (ormap (lambda ([a : FAtom]) (set-member? named-atoms a)) ups))
+       (andmap (lambda ([b : bound])
+                 (and (all-or-none? (bound-upper b))
+                      (or (and linear? (equal? (bound-relation b) s))
+                          (all-or-none? (bound-lower b)))))
+               sig-bounds)))
+
 (: constrain-bounds (-> (Listof bound) 
                         (Listof node/expr/relation) 
                         (HashTable node/expr/relation (Listof FAtom))
                         (HashTable node/expr/relation (Listof node/expr/relation)) 
                         (HashTable node/expr/relation node/expr/relation) 
+                        (Setof FAtom)
                         (Values (Listof bound) (Listof node/formula))))
-(define (constrain-bounds total-bounds maybe-list-sigs bounds-store relations-store extensions-store) 
+(define (constrain-bounds total-bounds maybe-list-sigs bounds-store relations-store extensions-store named-atoms) 
     (define name-to-rel (make-hash))
     (hash-for-each relations-store (λ ([k : node/expr/relation] v) (hash-set! name-to-rel (node/expr/relation-name k) k)))
     (for ([s maybe-list-sigs]) (hash-set! name-to-rel (node/expr/relation-name s) s))
@@ -245,6 +259,19 @@
                     (for ([t typelist]) (when (hash-has-key? name-to-rel t)
                         (set-remove! sigs (hash-ref name-to-rel t))))))))
 
+    (define sig-bounds (filter (lambda ([b : bound]) (member (bound-relation b) maybe-list-sigs)) total-bounds))
+    (hash-for-each rel-breaks (λ ([r : node/expr/relation] [bs : (Setof node/breaking/break)])
+      (define rl (hash-ref relations-store r (lambda () (list))))
+      (for ([b bs] #:when (and (memq (node/breaking/break-break b) '(linear plinear)) (>= (length rl) 2)))
+        (define s (list-ref rl (- (length rl) 2)))
+        (unless (interchangeable? s (hash-ref bounds-store s (lambda () (list))) (eq? (node/breaking/break-break b) 'linear)
+                                  named-atoms sig-bounds)
+          (when (set-member? sigs s)
+            (raise-forge-warning
+             #:msg (format "`is ~a` on ~a: other bounds name or distinguish its atoms, so Forge cannot fix the order via bounds. Using a slower encoding."
+                           (node/breaking/break-break b) (node/expr/relation-name s))
+             #:context (nodeinfo-loc (node-info b))))
+          (set-remove! sigs s)))))
         
 
     ; proposed breakers from each relation
@@ -660,8 +687,8 @@
   (if (node/expr/relation? rel)
     (breaker pri
       (break-graph (set) (set))    
-      (λ ()      
-        (make-upper-break rel (list->set (apply cartesian-product atom-lists))))
+      ; Pass the computed bound through unchanged
+      (λ () (break (bound->sbound bound) (set)))
       (λ () (break (bound->sbound bound) (set)))
       )
     (raise (format "Internal error in breaks.defaultStrategy. Given: ~a; from:~a~n" rel loc)))))

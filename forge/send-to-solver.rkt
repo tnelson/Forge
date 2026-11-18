@@ -188,7 +188,7 @@
                                 (if extend-sig
                                   (values sig extend-sig)
                                   (raise (format "Internal error building extensions-store. Sig was: ~a" sig))))])
-      (constrain-bounds total-bounds sig-rels upper-bounds relations-store extensions-store)))
+      (constrain-bounds total-bounds sig-rels upper-bounds relations-store extensions-store (named-atoms run-spec))))
   
   (clear-breaker-state)
 
@@ -386,6 +386,18 @@
   (if (< excluded-end start) 
    empty 
    (build-list (@- excluded-end start) (lambda ([idx : Integer]) (@+ idx start)))))
+
+;; The set of atoms named in a partial-instance _field_ bound.
+;; (If the instance names an atom in a field, that atom is no longer interchangeable.)
+(: named-atoms (-> Run-spec (Setof FAtom)))
+(define (named-atoms run-spec)
+  (define ub (Run-spec-bounds run-spec))
+  (list->set (apply append (append
+    (for/list : (Listof (Listof FAtom)) ([(rel sb) (in-hash (Bound-pbindings ub))] #:unless (Sig? rel))
+      (define upper (sbound-upper sb))
+      (apply append (append (set->list (sbound-lower sb)) (if upper (set->list upper) '()))))
+    (for/list : (Listof (Listof FAtom)) ([pw (in-hash-values (Bound-piecewise ub))])
+      (append (PiecewiseBound-atoms pw) (apply append (PiecewiseBound-tuples pw))))))))
 
 (: get-bounds (-> Run-spec Syntax
                   (Values (HashTable Symbol bound) (HashTable Symbol bound) (Listof FAtom))))

@@ -33,6 +33,12 @@ else
     otherOSPattern="custom-solver/win/"
 fi
 
+# CI uses picosat for custom_solver_next.rkt; don't assume this is installed locally.
+if ! command -v picosat >/dev/null 2>&1; then
+    echo "No picosat found. Skipping custom_solver_next.rkt"
+    otherOSPattern="${otherOSPattern}\|custom_solver_next\\.rkt"
+fi
+
 # This will create a newline-separated list of file names. But note comments on `for` below.
 testFiles="$( find $testDir -type f \( -name "*.rkt" -o -name "*.frg" \) | grep --invert-match ${doNotTestPattern} | grep --invert-match ${otherOSPattern} )"
 
