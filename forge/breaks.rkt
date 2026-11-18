@@ -608,70 +608,11 @@
     )
 )
 
-; (define (co f)
-;     (λ (pri rel bound atom-lists rel-list [loc #f])
-;         (define sub-breaker (f pri (@~ rel) bound (reverse atom-lists) (reverse rel-list) loc))
-;         (breaker pri
-;             (breaker-break-graph sub-breaker)
-;             (λ () 
-;                 ; unpack results of sub-breaker
-;                 (define sub-break ((breaker-make-break sub-breaker)))
-;                 (define sub-formulas (break-formulas sub-break))
-;                 (define sub-sbound (break-sbound sub-break))
-;                 (define sub-lower (sbound-lower sub-sbound))
-;                 (define sub-upper (sbound-upper sub-sbound))
-;                 ; reverse all tuples in sbounds 
-;                 (define lower (for/set ([l sub-lower]) (reverse l)))
-;                 (define upper (for/set ([l sub-upper]) (reverse l)))
-;                 (define bound (sbound rel lower upper))
-
-;                 (break bound sub-formulas)
-;             )
-;             (λ ()
-;                 ((breaker-make-default sub-breaker))
-;             )
-;         )
-;     )
-; )
-
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;; define breaks and compositions ;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 ;;; A->A Strategies ;;;
-; (add-strategy 'irref (λ (pri rel bound atom-lists rel-list [loc #f]) 
-;     (define atoms (first atom-lists))
-;     (define sig (first rel-list))
-;     (breaker pri
-;         (break-graph (set) (set))
-;         (λ () 
-;             (make-upper-break rel
-;                             (filter-not (lambda (x) (equal? (first x) (second x)))
-;                                         (apply cartesian-product atom-lists))))
-;         (λ () (break bound (set
-;             (@no/info (just-location-info loc) (@& @iden rel))
-;         )))
-;     )
-; ))
-; (add-strategy 'ref (λ (pri rel bound atom-lists rel-list [loc #f]) 
-;     (define atoms (first atom-lists))
-;     (define sig (first rel-list))
-;     (breaker pri
-;         (break-graph (set) (set))
-;         (λ () 
-;             (make-lower-break rel
-;                             (filter     (lambda (x) (equal? (first x) (second x)))
-;                                         (apply cartesian-product atom-lists))
-;                             atom-lists))
-;         (λ () (break bound (set
-;             (@all/info (just-location-info loc) ([x sig])
-;                 (@in x (@join sig rel))
-;             )
-;         )))
-;     )
-; ))
-
-
 (add-strategy 'linear (λ (pri rel bound atom-lists rel-list [loc #f])     
     (define atoms (first atom-lists))
     (define sig (first rel-list))
@@ -703,53 +644,6 @@
     )
 ))
 
-; (add-strategy 'acyclic (λ (pri rel bound [atom-lists : (Listof Any)] [rel-list : (Listof Any)] [loc #f]) 
-;     (define atoms (first atom-lists))
-;     (define sig (first rel-list))
-;     (breaker pri
-;         (break-graph (set) (set))
-;         (λ ()
-;             (make-upper-break rel
-;                             (for*/list ([i (length atoms)]
-;                                         [j (length atoms)]
-;                                         #:when (< i j))
-;                                     (list (list-ref atoms i) (list-ref atoms j)))))
-;         (λ () (break bound (set
-;             (@no/info (just-location-info loc) ([x sig])
-;                 (@in x (@join x (@^ rel)))
-;             )
-;         )))
-;     )
-; ))
-; (add-strategy 'tree (λ (pri rel bound atom-lists rel-list [loc #f]) 
-;     (define atoms (first atom-lists))
-;     (define sig (first rel-list))
-;     (breaker pri
-;         (break-graph (set) (set))
-;         (λ ()
-;             (make-break 
-;                 (bound->sbound (make-upper-bound rel
-;                             (for*/list ([i (length atoms)]
-;                                         [j (length atoms)]
-;                                         #:when (< i j))
-;                                     (list (list-ref atoms i) (list-ref atoms j)))))
-;                 (set
-;                     (@some/info (just-location-info loc) ([n sig]) 
-;                         (@all ([m (@- sig n)]) 
-;                             (@one (@join rel m))
-;                         )
-;                     )
-;                 )))
-;         (λ () (break bound (set
-;             (@some/info (just-location-info loc) ([n sig]) (@&&
-;                 (@no/info (just-location-info loc) (@join rel n))
-;                 (@all ([m (@- sig n)]) 
-;                     (@one (@join rel m))
-;                 )
-;             ))
-;         )))
-;     )
-; ))
 (add-strategy 'plinear (λ (pri rel bound atom-lists rel-list [loc #f])     
     (define atoms (first atom-lists))
     (define sig (first rel-list))
@@ -809,57 +703,6 @@
                                   (funcformula (rest rllst) (cons a quantvarlst))))]))
     (define formulas (set (funcformula rel-list (list))))
     
-    ; OLD CODE
-;     (if (equal? A B)
-; ; ORIGINAL CODE
-;         ; (breaker pri ; TODO: can improve, but need better symmetry-breaking predicates
-;         ;     (break-graph (set A) (set))
-;         ;     (λ () (break ;(bound->sbound bound) formulas))
-;         ;         (sbound rel
-;         ;             (set)
-;         ;             ;(for*/set ([a (length As)]
-;         ;             ;           [b (length Bs)] #:when (<= b (+ a 1)))
-;         ;             ;    (list (list-ref As a) (list-ref Bs b))))
-;         ;             (set-add (cartesian-product (cdr As) Bs) (list (car As) (car Bs))))
-;         ;         formulas))
-;         ;     (λ () (break bound formulas))
-;         ; )
-;         ; (breaker pri ; TODO: can improve, but need better symmetry-breaking predicates
-;         ;     (break-graph (set B) (set (set A B)))   ; breaks B and {A,B}
-;         ;     (λ () 
-;         ;         ; assume wlog f(a) = b for some a in A, b in B
-;         ;         (break 
-;         ;             (sbound rel
-;         ;                 (set (list (car As) (car Bs)))
-;         ;                 (set-add (cartesian-product (cdr As) Bs) (list (car As) (car Bs))))
-;         ;             formulas))
-;         ;     (λ () (break bound formulas))
-;         ; )
-; ; BEGIN INSERTED TEMPORARY FIX FOR 'FUNC
-;         (formula-breaker pri ; TODO: can improve, but need better symmetry-breaking predicates
-;             (break-graph (set A) (set))
-;             (λ () (break ;(bound->sbound bound) formulas))
-;                 (sbound rel
-;                     (set)
-;                     ;(for*/set ([a (length As)]
-;                     ;           [b (length Bs)] #:when (<= b (+ a 1)))
-;                     ;    (list (list-ref As a) (list-ref Bs b))))
-;                     (set-add (cartesian-product (cdr As) Bs) (list (car As) (car Bs))))
-;                 formulas))
-;             (λ () (break bound formulas))
-;         )
-;         (formula-breaker pri ; TODO: can improve, but need better symmetry-breaking predicates
-;             (break-graph (set B) (set (set A B)))   ; breaks B and {A,B}
-;             (λ () 
-;                 ; assume wlog f(a) = b for some a in A, b in B
-;                 (break 
-;                     (sbound rel
-;                         (set (list (car As) (car Bs)))
-;                         (set-add (cartesian-product (cdr As) Bs) (list (car As) (car Bs))))
-;                     formulas))
-;             (λ () (break bound formulas))
-;         )
-; END INSERTED TEMPORARY FIX FOR 'FUNC
         (breaker pri 
             (break-graph (set) (set))
             (λ () (break (bound->sbound bound) formulas))
@@ -895,29 +738,6 @@
                 (define pf-fmla (pfuncformula rel-list (list)))
                 (define formulas (set pf-fmla))
                 
-    ; OLD CODE
-    ; (if (equal? A B)
-    ;     (formula-breaker pri ; TODO: can improve, but need better symmetry-breaking predicates
-    ;         (break-graph (set A) (set))
-    ;         (λ () (break ;(bound->sbound bound) formulas))
-    ;             (sbound rel
-    ;                 (set)
-    ;                 ;(for*/set ([a (length As)]
-    ;                 ;           [b (length Bs)] #:when (<= b (+ a 1)))
-    ;                 ;    (list (list-ref As a) (list-ref Bs b))))
-    ;                 (set-add (cartesian-product (cdr As) Bs) (list (car As) (car Bs))))
-    ;             formulas))
-    ;         (λ () (break bound formulas)))
-    ;     (formula-breaker pri ; TODO: can improve, but need better symmetry-breaking predicates
-    ;         (break-graph (set B) (set (set A B)))   ; breaks B and {A,B}
-    ;         (λ () 
-    ;             ; assume wlog f(a) = b for some a in A, b in B
-    ;             (break 
-    ;                 (sbound rel
-    ;                     (set (list (car As) (car Bs)))
-    ;                     (set-add (cartesian-product (cdr As) Bs) (list (car As) (car Bs))))
-    ;                 formulas))
-    ;         (λ () (break bound formulas))))
         (breaker pri
             (break-graph (set) (set))
             (λ () (break (bound->sbound bound) formulas))
@@ -925,116 +745,6 @@
             #f
         )
     ))
-
-; ;(: surj-strategy StrategyFunction)
-; (define surj-strategy (λ ([pri : Number] [rel : Any] [bound : bound] [atom-lists : (NonEmptyListOf (Listof Any))] [rel-list : (NonEmptyListOf Any)] [loc #f]) 
-;     (define A (first rel-list))
-;     (define B (second rel-list))
-;     (define As (first atom-lists))
-;     (define Bs (second atom-lists))  
-;     (define formulas (set 
-;         (@all/info (just-location-info loc) ([a A]) (@one/info (just-location-info loc)  (@join a rel)))    ; @one
-;         (@all/info (just-location-info loc) ([b B]) (@some/info (just-location-info loc) (@join rel b)))    ; @some
-;     ))
-;     (if (equal? A B)
-;         (breaker pri ; TODO: can improve, but need better symmetry-breaking predicates
-;             (break-graph (set) (set))
-;             (λ () (break (bound->sbound bound) formulas))
-;             (λ () (break bound formulas))
-;         )
-;         (breaker pri ; TODO: can improve, but need better symmetry-breaking predicates
-;             (break-graph (set) (set (set A B)))   ; breaks only {A,B}
-;             (λ () 
-;                 ; assume wlog f(a) = b for some a in A, b in B
-;                 (break 
-;                     (sbound rel
-;                         (set (list (car As) (car Bs)))
-;                         (set-add (cartesian-product (cdr As) Bs) (list (car As) (car Bs))))
-;                     formulas))
-;             (λ () (break bound formulas))
-;         )
-;     )
-; ))
-; (add-strategy 'surj surj-strategy)
-
-; (add-strategy 'inj (λ (pri rel bound atom-lists rel-list [loc #f]) 
-;     (define A (first rel-list))
-;     (define B (second rel-list))
-;     (define As (first atom-lists))
-;     (define Bs (second atom-lists))  
-;     (define formulas (set 
-;         (@all/info (just-location-info loc) ([a A]) (@one/info (just-location-info loc)  (@join a rel)))    ; @one
-;         (@all/info (just-location-info loc) ([b B]) (@lone/info (just-location-info loc) (@join rel b)))    ; @lone
-;     ))
-;     (if (equal? A B)
-;         (breaker pri ; TODO: can improve, but need better symmetry-breaking predicates
-;             (break-graph (set) (set))
-;             (λ () (break (bound->sbound bound) formulas))
-;             (λ () (break bound formulas))
-;         )
-;         (breaker pri ; TODO: can improve, but need better symmetry-breaking predicates
-;             (break-graph (set B) (set (set A B)))   ; breaks B and {A,B}
-;             (λ () 
-;                 ; assume wlog f(a) = b for some a in A, b in B
-;                 (break 
-;                     (sbound rel
-;                         (set (list (car As) (car Bs)))
-;                         (set-add (cartesian-product (cdr As) (cdr Bs)) (list (car As) (car Bs))))
-;                     formulas))
-;             (λ () (break bound formulas))
-;         )
-;     )
-; ))
-; (add-strategy 'bij (λ (pri rel bound atom-lists rel-list [loc #f]) 
-;     (define A (first rel-list))
-;     (define B (second rel-list))
-;     (define As (first atom-lists))
-;     (define Bs (second atom-lists))  
-;     (define formulas (set 
-;         (@all/info (just-location-info loc) ([a A]) (@one/info (just-location-info loc)  (@join a rel)))    ; @one
-;         (@all/info (just-location-info loc) ([b B]) (@one/info (just-location-info loc)  (@join rel b)))    ; @one
-;     ))
-;     (if (equal? A B)
-;         (breaker pri ; TODO: can improve, but need better symmetry-breaking predicates
-;             (break-graph (set) (set))
-;             (λ () (break (bound->sbound bound) formulas))
-;             (λ () (break bound formulas))
-;         )
-;         (breaker pri ; TODO: can improve, but need better symmetry-breaking predicates
-;             (break-graph (set) (set (set A B)))   ; breaks only {A,B}
-;             (λ () (make-exact-break rel (map list As Bs)))
-;             (λ () (break bound formulas))
-;         )
-;     )
-; ))
-; (add-strategy 'pbij (λ (pri rel bound atom-lists rel-list [loc #f]) 
-;     (define A (first rel-list))
-;     (define B (second rel-list))
-;     (define As (first atom-lists))
-;     (define Bs (second atom-lists))  
-;     (define LA (length As))
-;     (define LB (length Bs))
-;     (define broken (cond [(> LA LB) (set A)]
-;                          [(< LA LB) (set B)]
-;                          [else (set)]))
-;     ;(printf "broken : ~v~n" broken)
-;     (define formulas (set 
-;         (@all/info (just-location-info loc) ([a A]) (@one/info (just-location-info loc) (@join a rel)))    ; @one
-;         (@all/info (just-location-info loc) ([b B]) (@one/info (just-location-info loc) (@join rel b)))    ; @one
-;     ))
-;     (if (equal? A B)
-;         (breaker pri ; TODO: can improve, but need better symmetry-breaking predicates
-;             (break-graph (set) (set))
-;             (λ () (break (bound->sbound bound) formulas))
-;             (λ () (break bound formulas))
-;         )
-;         (breaker pri ; TODO: can improve, but need better symmetry-breaking predicates
-;             (break-graph broken (set (set A B)))   ; breaks only {A,B}
-;             (λ () (make-upper-break rel (for/list ([a As][b Bs]) (list a b)) formulas))
-;             (λ () (break bound formulas))
-;         )
-;     )
-; ))
 
 ; use to prevent breaks
 (: defaultStrategy StrategyFunction)
@@ -1052,41 +762,16 @@
 
 (add-strategy 'default defaultStrategy)
 
-; (add-strategy 'cotree (variadic 2 (co (hash-ref strategies 'tree))))
-; (add-strategy 'cofunc (variadic 2 (co (hash-ref strategies 'func))))
-; (add-strategy 'cosurj (variadic 2 (co (hash-ref strategies 'surj))))
-; (add-strategy 'coinj (variadic 2 (co (hash-ref strategies 'inj))))
-
-; (add-strategy 'irref (variadic 2 (hash-ref strategies 'irref)))
-; (add-strategy 'ref (variadic 2 (hash-ref strategies 'ref)))
-
 ; this one cannot afford to go to purely formula break
 (add-strategy 'linear (variadic 2 (hash-ref strategies 'linear)))
 (add-strategy 'plinear (variadic 2 (hash-ref strategies 'plinear)))
 
-
-
-; (add-strategy 'acyclic (variadic 2 (hash-ref strategies 'acyclic)))
-; (add-strategy 'tree (variadic 2 (hash-ref strategies 'tree)))
 (add-strategy 'func (hash-ref strategies 'func))
 (add-strategy 'pfunc (hash-ref strategies 'pfunc))
-; (add-strategy 'surj (variadic 2 (hash-ref strategies 'surj)))
-; (add-strategy 'inj (variadic 2 (hash-ref strategies 'inj)))
-; (add-strategy 'bij (variadic 2 (hash-ref strategies 'bij)))
-; (add-strategy 'pbij (variadic 2 (hash-ref strategies 'pbij)))
 
 
 ;;; Domination Order ;;;
-; (declare 'linear > 'tree)
-; (declare 'tree > 'acyclic)
-; (declare 'acyclic > 'irref)
-; (declare 'func < 'surj 'inj 'pfunc)
 (declare 'func < 'pfunc)
-; (declare 'bij = 'surj 'inj)
-; (declare 'linear = 'tree 'cotree)
-; (declare 'bij = 'func 'cofunc)
-; (declare 'cofunc < 'cosurj 'coinj)
-; (declare 'bij = 'cosurj 'coinj)
 
 (provide get-co)
 (define co-map (make-hash))
@@ -1103,35 +788,58 @@
 
 #|
 ADDING BREAKS
-- add breaks here with using add-strategy and the declare forms:
-    - (declare a > bs ...)
-    - (declare a < bs ...)
-    - (declare a = bs ...)
-- note that your break can likely compose with either 'ref or 'irref because they don't break syms
-    - so don't forget to declare that
-- declarations will be inferred automatically when possible:
-    - a > b        |- a = a + b
-    - a > b, b > c |- a > c
-- note, however:
-    - a = a + b   !|- a > b
-- add a call to make-breaker to the bottom of ast.rkt for your new breaker
-
-TODO:
-- prove correctness
-- add extra formulas to further break symmetries because kodkod can't once we've broken bounds
-    - improve all functional strategies (see func A->A case for commented working example)
-- allow strategies to be passed multiple values, return values, split sigs
-- strategy combinators
-    - naive equiv strategies
-        - can be used to combine many strats with ref/irref, even variadic ones
-        - use in equiv if sum isn't defined
-- more strats
-    - lasso
-    - loop
-    - loops
-    - unique init/term
-    - unique init/term + acyclic
-    - has init/term
-    - more partial breaks
+  - add breaks here with using add-strategy and the declare forms:
+  - add a call to make-breaker to the bottom of ast.rkt for your new breaker
 |#
 
+
+;; Unsound as written (an empty break graph lets two breaks claim the same sig)
+; (add-strategy 'acyclic (λ (pri rel bound [atom-lists : (Listof Any)] [rel-list : (Listof Any)] [loc #f]) 
+;     (define atoms (first atom-lists))
+;     (define sig (first rel-list))
+;     (breaker pri
+;         (break-graph (set) (set))
+;         (λ ()
+;             (make-upper-break rel
+;                             (for*/list ([i (length atoms)]
+;                                         [j (length atoms)]
+;                                         #:when (< i j))
+;                                     (list (list-ref atoms i) (list-ref atoms j)))))
+;         (λ () (break bound (set
+;             (@no/info (just-location-info loc) ([x sig])
+;                 (@in x (@join x (@^ rel)))
+;             )
+;         )))
+;     )
+; ))
+; (add-strategy 'tree (λ (pri rel bound atom-lists rel-list [loc #f]) 
+;     (define atoms (first atom-lists))
+;     (define sig (first rel-list))
+;     (breaker pri
+;         (break-graph (set) (set))
+;         (λ ()
+;             (make-break 
+;                 (bound->sbound (make-upper-bound rel
+;                             (for*/list ([i (length atoms)]
+;                                         [j (length atoms)]
+;                                         #:when (< i j))
+;                                     (list (list-ref atoms i) (list-ref atoms j)))))
+;                 (set
+;                     (@some/info (just-location-info loc) ([n sig]) 
+;                         (@all ([m (@- sig n)]) 
+;                             (@one (@join rel m))
+;                         )
+;                     )
+;                 )))
+;         (λ () (break bound (set
+;             (@some/info (just-location-info loc) ([n sig]) (@&&
+;                 (@no/info (just-location-info loc) (@join rel n))
+;                 (@all ([m (@- sig n)]) 
+;                     (@one (@join rel m))
+;                 )
+;             ))
+;         )))
+;     )
+; ))
+; (add-strategy 'acyclic (variadic 2 (hash-ref strategies 'acyclic)))
+; (add-strategy 'tree (variadic 2 (hash-ref strategies 'tree)))
