@@ -1,7 +1,6 @@
 #lang racket/base
 
 (require br/indent)
-;(require racket/gui/base racket/contract)
 
 (define indent-width 4)
 (define (open? c) (member c (list #\{ #\|)))
@@ -23,9 +22,3 @@
        [else prev-indent])]))
 
 (provide indent-forge)
-
-;(provide
-; (contract-out
-;  [indent-forge (((is-a?/c text%))
-;                  (exact-nonnegative-integer?) . ->* .
-;                  exact-nonnegative-integer?)]))

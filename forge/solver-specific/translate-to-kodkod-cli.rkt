@@ -58,12 +58,6 @@
     [(node/formula/sealed info)
      (interpret-formula info relations atom-names quantvars)]
 
-     ; (let ([quantvars (cons var quantvars)])
-     ;   ( print-cmd-cont (format "(~a ([~a : ~a " quantifier (v (get-var-idx var quantvars)) (if (@> (node/expr-arity var) 1) "set" "one")))
-     ;   (interpret-expr (cdr (car decls)) relations atom-names quantvars)
-     ;   ( print-cmd-cont "]) ")
-     ;   (interpret-formula run-or-state form relations atom-names quantvars)
-     ;   ( print-cmd-cont ")"))]
     [#t ( print-cmd-cont "true ")]
     [#f ( print-cmd-cont "false ")]
     ))
@@ -198,12 +192,10 @@
     [(? node/expr/op? op)
      (interpret-expr-op run-or-state expr relations atom-names quantvars (node/expr/op-children op))]
     [(node/expr/quantifier-var info arity sym name)     
-     ;(print-cmd-cont (symbol->string (v sym)))
      (print-cmd-cont (symbol->string (v (get-sym expr))))
      (print-cmd-cont " ")]
     [(node/expr/comprehension info len decls form)     
      (define vars (map car decls)) ; account for multiple variables
-     ;(define var (car (car decls)))     
      (let ([quantvars (append vars quantvars)])       
        ( print-cmd-cont "{(") ; start comprehension, start decls
        (for-each (lambda (d) ; each declaration

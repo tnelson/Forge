@@ -145,10 +145,6 @@
                     (append (build-iden bind) (tc (eval-exp child-exp bind bitwidth safe)))]
                    [(ast:node/expr/op-on-exprs/~ _ _ `(,child-exp))
                     (map reverse (eval-exp child-exp bind bitwidth safe))]
-                   ; Set comprehension - TODO (do we need this? Thomas says no)
-                   #;[`(set ,var ,lst ,form) (filter (lambda (x) (eval-form form (hash-set bind var (list x)) bitwidth))
-                                                     (eval-exp lst bind bitwidth safe))]
-                   #;[(ast:node/expr/comprehension info arity decls formulas) ...]
                    ; Constants
                    [(ast:node/expr/constant _ _ type)
                     (cond [(equal? type 'none) empty]
@@ -156,20 +152,6 @@
                           [(equal? type 'iden) (build-iden bind)]
                           [else (printf "Not a valid constant: ~a~n" type)])]
                    [(ast:node/expr/atom _ _ name) `((,name))]
-                   ; probably supports box join
-                   ; won't be needed in forge-functional then
-                   #;[`(,p ,vals ...) ;#:when (hash-has-key? bind p)
-                      ; is this one a node/expr/quantifier-var
-                      (with-handlers ([exn:fail? (λ (exn) 
-                                                   (define joined (foldl (λ (x y) `(join ,x ,y)) p vals))
-                                                   (eval-exp joined bind bitwidth safe))])
-                        (match-define (list args alloy) (hash-ref bind p))
-                        (set! vals (for/list ([val vals]) (eval-exp val bind bitwidth)))
-                        ; (make-hash (map cons args vals))
-                        ; (for/hash ([a args][v vals]) (values a v))
-                        (define bind2 (hash-union bind (make-hash (map cons args vals)) #:combine/key (lambda (k v1 v2) v2)))
-                        (define kodkod (alloy->kodkod alloy))
-                        (eval-exp kodkod bind2 bitwidth))]
                    [id
                     (cond
                       [(relation? id)
@@ -309,12 +291,6 @@
     ; works assuming (int n) requires n to be an int
     [(ast:node/int/constant _ n)
      (eval-int-expr n bind bitwidth)]
-    ; DO WE NEED sum-quant in INSTANCES?
-    ; similar to set comprehension
-    #;[`(sum ,var ,lst ,ie)
-       (foldl (λ (x res) (+ res (eval-int-expr ie (hash-set bind var (list x)) bitwidth)))
-              0
-              (eval-exp lst bind bitwidth))]
     [(ast:node/int/op-on-exprs/sum _ `(,child-exp))
      (wraparound
       (let ([expr-val (eval-exp child-exp bind bitwidth)])

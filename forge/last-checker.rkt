@@ -275,7 +275,6 @@
      (check-and-output formula
                        node/formula/op-on-exprs/in
                        checker-hash
-                       ;(for-each (lambda (x) (expression-type-type (checkExpression run-or-state x quantvars checker-hash))) args)
                        (void)
                        child-types
                        )]
@@ -358,8 +357,6 @@
     ; extra work done on int - adding 1 to a var
     [(? node/int?) (expression-type (list (list 'Int)) 'one #f (list 'Int))]
     [(? integer?) (expression-type (list (list 'Int)) 'one #f (list 'Int))]
-    ; [_ (let ([output (checkExpression-mult run-or-state expr quantvars checker-hash)])
-    ;      (expression-type-type output))]))
     [_ (checkExpression-mult run-or-state expr quantvars checker-hash)]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

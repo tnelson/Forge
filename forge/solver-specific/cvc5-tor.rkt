@@ -98,10 +98,6 @@
       (define remove-remainder-lambda (lambda (sig-name) (string->symbol (regexp-replace #rx"_remainder$" (symbol->string sig-name) ""))))
       (cond [(or (equal? 1 (length primsigs)) (empty? primsigs)) '()]
             [else
-            ; (format "(assert (= ~a (set.union ~a)))~n~a~n"
-            ;         (relation-name (bound-relation bound))
-            ;         (deparen (map remove-remainder-lambda primsigs))
-            ;         (child-disjointness run-or-state (bound-relation bound)))
             (let ([assertion `(assert (= ,(string->symbol (relation-name (bound-relation bound))) (set.union ,@(map remove-remainder-lambda primsigs))))])
                 (cons assertion (child-disjointness run-or-state (bound-relation bound)))
             )])
@@ -302,9 +298,6 @@
     (raise-forge-error #:msg (format "Run ~a has been closed." run-name)
                        #:context run-command))
     
-  ; Mock an SMT-LIB input using theory of relations. Keep the port open!
-  ;(define mock-problem (port->string (open-input-file "own-grandpa.smt2" #;"cvc5.smt") #:close? #f))
-  ;(smtlib-display stdin mock-problem)
   ; ASSUME: reply format is a single line for the result type, then
   ;   a paren-delimited s-expression with any output of that 
   (smtlib-display stdin "(check-sat)")
@@ -553,7 +546,3 @@
   (define string-atom-id (format "~a" atom-id))
   (string->symbol
    (string-replace (string-replace string-atom-id "@" "") "_" "$")))
-
-;(smtlib-tor-to-instance
-;'((define-fun spouse () (Set (Tuple Person Person)) (set.union (set.singleton (tuple (as @Person_0 Person) (as @Person_3 Person))) (set.union (set.singleton (tuple (as @Person_2 Person) (as @Person_1 Person))) (set.union (set.singleton (tuple (as @Person_3 Person) (as @Person_0 Person))) (set.singleton (tuple (as @Person_1 Person) (as @Person_2 Person)))))))
-;))

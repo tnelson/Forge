@@ -127,7 +127,6 @@
 ; We don't want a contract here, because we wish to control the error message given
 ; if somehow the user has provided something ill-typed that wasn't caught elsewhere.
 (define (intexpr->expr/maybe a-node #:op functionname #:info info)
-  ;(@-> (or/c node? integer?) #:op symbol? #:info nodeinfo? node/expr?)  
   (cond [(node/int? a-node) (node/expr/op-on-ints/sing (update-annotation (node-info a-node) 'automatic-int-conversion #t) 1 (list a-node))]
         [(integer? a-node) (intexpr->expr/maybe (int a-node) #:op functionname #:info info)]
         [(node/expr? a-node) a-node]
@@ -500,9 +499,6 @@
   (define-node-op id node/expr/op join-arity #:join? #t #:type node/expr?))
 (define-op/join join)
 
-; These are implemented as macros in sigs-structs.rkt, although we only support restricting binary relations for now.
-;(define-node-op <: node/expr/op get-second #:max-length 2 #:domain? #t #:type node/expr?)
-;(define-node-op :> node/expr/op get-first  #:max-length 2 #:range? #t #:type node/expr?)
 
 (define-node-op ++ node/expr/op get-first #:same-arity? #t #:min-length 2 #:max-length 2 #:type node/expr?)
 (define-node-op sing node/expr/op (const 1) #:min-length 1 #:max-length 1 #:type node/int?)
@@ -624,7 +620,6 @@
   [(define (write-proc self port mode)
      (match-define (node/expr/relation info arity name typelist-thunk parent is-variable) self)
      (fprintf port "(relation ~a ~v ~a ~a)" arity name (typelist-thunk) parent))]
-     ;(fprintf port "(rel ~a)" name))]
   #:methods gen:equal+hash
   [(define equal-proc (make-robust-node-equal-syntax node/expr/relation))
    (define hash-proc  (make-robust-node-hash-syntax node/expr/relation 0))
@@ -954,7 +949,6 @@
                        #:context (if (node? formula) formula info)))
   (node/formula/quantified info quantifier decls formula))
 
-;(struct node/formula/higher-quantified node/formula (quantifier decls formula))
 
 ;; -- multiplicities -----------------------------------------------------------
 

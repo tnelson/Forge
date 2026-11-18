@@ -88,15 +88,6 @@
   result)
 
 (begin-for-syntax
-  ; AlloyModule : ModuleDecl? Import* Paragraph*
-  ;             | EvalDecl*
-  ; (define-syntax-class AlloyModuleClass
-  ;   (pattern ((~datum AlloyModule)
-  ;             (~optional module-decl:ModuleDeclClass)
-  ;             (~seq import:ImportClass ...)
-  ;             (~seq paragraph:ParagraphClass ...)))
-  ;   (pattern ((~datum AlloyModule)
-  ;             (~seq eval-decl:EvalDeclClass ...))))
 
 
   ; Header stuff
@@ -144,16 +135,10 @@
     (pattern decl:ConsistencyDeclClass)
     (pattern decl:TestSuiteDeclClass)
     (pattern decl:SexprDeclClass)
-    ; (pattern decl:BreakDeclClass)
-    ; (pattern decl:InstanceDeclClass)
-    ; (pattern decl:QueryDeclClass)
-    ; (pattern decl:StateDeclClass)
-    ; (pattern decl:TransitionDeclClass)
     (pattern decl:RelDeclClass)
     (pattern decl:OptionDeclClass)
     (pattern decl:InstDeclClass)
     (pattern decl:ExampleDeclClass))
-    ; (pattern decl:TraceDeclClass))
 
   ;Used for Electrum stuff
   ;Used to declare var Sigs and Relations (so they can change over time)
@@ -252,10 +237,8 @@
   ; ArrowDecl : DISJ-TOK? NameList /COLON-TOK DISJ-TOK? ArrowMult ArrowExpr
   (define-syntax-class ArrowDeclClass
     (pattern ((~datum ArrowDecl)
-              ;(~optional "disj")
               (~optional isv:VarKeywordClass #:defaults ([isv #'#f])) ; electrum
               name-list:NameListClass
-              ;(~optional "disj") 
               mult-class:ArrowMultClass
               type-list:ArrowExprClass)
       #:attr names #'(name-list.names ...)
@@ -592,7 +575,6 @@
   (define-syntax-class BoundsClass
      #:description "bounds declarations"
     (pattern ((~datum Bounds)
-              ;(~optional "exactly")
               bounds:BoundClass ...)
       #:attr translate (begin
                          (datum->syntax #'(bounds ...)
@@ -600,7 +582,6 @@
                                         ; their context/srcloc. (The syntax/loc here doesn't seem to be
                                         ; needed, since it's templating.)
                                         (syntax->list #'(bounds.translate ...))
-                                        ;(syntax->list (syntax/loc this-syntax (bounds.translate ...)))
                                         (build-source-location this-syntax))))
     ; direct use in the example, test, run, etc.
     ; `example` macro splices the result in. Hence, not #'(Expr name).
@@ -746,7 +727,6 @@
           (raise-forge-error
            #:msg (format "Negative numbers must not have blank space between the minus sign and the digits (~a)." n.value)
            #:context loc)))
-      ;(quasisyntax/loc this-syntax (int #,(* -1 (syntax->datum #'n.value)))))
     ))
   
   ; ArrowOp : (@Mult | SET-TOK)? ARROW-TOK (@Mult | SET-TOK)?
@@ -859,12 +839,10 @@
   (syntax-parse stx
     [((~datum NT-AlloyModule) (~optional module-decl:ModuleDeclClass)
                               ; Imports are now handled separately
-                             ;(~seq import:ImportClass ...)
                              (~seq paragraph:ParagraphClass ...))
      (syntax/loc stx
        (begin
          (~? module-decl)
-         ;import ...
          paragraph ...))]
     [((~datum NT-AlloyModule) ((~datum NT-EvalDecl) "eval" expr:ExprClass))
      (syntax/loc stx expr)]
@@ -906,24 +884,6 @@
      (when (syntax->datum #'(~? other-names #f))
        (raise (format "Parameterized import not yet implemented. ~a" 'other-names)))
      
-    ;   (define prefixed-file-path
-    ;      (build-path (pkg-directory "forge")
-    ;                  "library"
-    ;                  (symbol->string (syntax->datum #'import-name.name))))  
-
-    ;     (printf "value: ~a~n" (symbol->string (syntax->datum #'import-name.name)))  
-    ;   (printf "Prefixed: ~a~n" prefixed-file-path)   
-    ;  (define actual-file-path
-    ;    (find-relative-path
-    ;     (current-load-relative-directory)
-    ;     (simplify-path  
-    ;      (cond [(file-exists? (path-add-extension prefixed-file-path #".rkt"))
-    ;             (path-add-extension prefixed-file-path #".rkt")]
-    ;            [(file-exists? (path-add-extension prefixed-file-path #".frg"))
-    ;             (path-add-extension prefixed-file-path #".frg")]
-    ;            [else
-    ;             (raise-forge-error #:msg (format "Forge library module to import did not exist: ~a" (syntax->datum #'import-name.name))
-    ;                                #:context stx)]))))
       
      (define actual-module-path 
        (string->symbol 
@@ -1126,7 +1086,6 @@
                       (~? (~@ #:target-distance tomf.translate_mode))))
        ; This should no longer be called per-command. Instead, an external coordinator
        ; (such as Sterling) will say when (and if) each command should be executed.
-       ;#,(syntax/loc stx (display name))
        ))]))
 
 ; TestDecl : (Name /COLON-TOK)? Parameters? (QualName | Block)? Scope? (/FOR-TOK Bounds)? /IS-TOK (SAT-TOK | UNSAT-TOK)
@@ -1622,7 +1581,6 @@
          (forge:Relation new-info
                          (node/expr-arity astnode) (node/expr/relation-name astnode) (node/expr/relation-typelist-thunk astnode)
                          (node/expr/relation-parent astnode) (node/expr/relation-is-variable astnode) (node/expr/relation-name astnode)
-                         ;(forge:Relation-name astnode)
                          (forge:Relation-sigs-thunks astnode) (forge:Relation-breaker astnode))]
         [(node/expr/quantifier-var? astnode)
          (node/expr/quantifier-var

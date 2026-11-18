@@ -85,8 +85,6 @@
 ; make-break        :: () -> break
 ; make-default      :: () -> break
 
-; ORIGINAL CODE
-; (struct breaker (pri break-graph make-break make-default) #:transparent)
 ; BEGIN INSERTED TEMPORARY FIX FOR 'FUNC
 (struct breaker (
     ; priority level of the breaker
@@ -138,17 +136,6 @@
 (: break-bound (-> break bound))
 (define break-bound (compose sbound->bound   break-sbound))
 
-; (: sbound+ (-> (Listof sbound) bound))
-; (define (sbound+ sbounds)
-;     ; TODO: assert all same relations
-;     (make-bound (break-relation (first sbounds)) 
-;                 (apply set-union     (map break-lower sbounds))
-;                 (apply set-intersect (map break-lower sbounds))))
-
-; (: break+ (-> (Listof break) break))
-; (define (break+ . breaks)
-;     (make-break (sbound+ breaks)
-;                 (apply set-union (map break-formulas breaks))))
 
 (: make-exact-break (-> node/expr (Setof Tuple) (Setof node/formula) break))
 (define (make-exact-break relation contents [formulas : (Setof node/formula) (set)])
@@ -222,8 +209,6 @@
 (define (hash-add-set! h k1 k2 v)
     (unless (hash-has-key? h k1) (hash-set! h k1 (ann (make-hash) (Mutable-HashTable K2 V))))
     (define h_k1 (hash-ref h k1))
-    ;; CHANGED pri_c to v.
-    ;(unless (hash-has-key? h_k1 k2) (hash-set! h_k1 k2 pri_c)))
     (unless (hash-has-key? h_k1 k2) (hash-set! h_k1 k2 v)))
 
 ; strategy :: () -> breaker
@@ -238,10 +223,6 @@
     (hash-set! compos (apply set bs) a)
     (apply stricter a bs)
     ; TODO: if no fn defined for a, default to naively doing all bs
-    #;(unless (hash-has-key? strategies a)
-            (hash-set! strategies a (λ (rel atom-lists rel-list)
-                (apply break+ (for ([b bs]) 
-                    ((hash-ref strategies b) atom-lists) )) )))
 )
 (: dominate (-> Symbol Symbol Void))
 (define (dominate a b)  
@@ -882,8 +863,6 @@
         (breaker pri 
             (break-graph (set) (set))
             (λ () (break (bound->sbound bound) formulas))
-            ;; TYPES
-            ;(λ () (break bound formulas))
             (λ () (break (bound->sbound bound) formulas))
             #f)))
 
@@ -1156,47 +1135,3 @@ TODO:
     - more partial breaks
 |#
 
-
-; (require (except-in xml attribute))
-
-; (define (xml->breakers xml name-to-rel)
-;     (set! xml (xml->xexpr (document-element (read-xml (open-input-string xml)))))
-;     (define (read-label info)
-;         (define label #f)
-;         (define builtin #f)
-;         (for/list ([i info]) (match i
-;             [(list 'label l) (set! label l)]
-;             [(list 'builtin "yes") (set! builtin #t)]
-;             [else #f]
-;         ))
-;         (if builtin #f (hash-ref name-to-rel label))
-;     )
-;     (define (read-atoms atoms) 
-;         (filter identity (for/list ([a atoms]) (match a
-;             [(list atom (list (list 'label l))) (string->symbol l)]
-;             [else #f]
-;         )))
-;     )
-;     (define (read-tuples tuples)
-;         (list->set (filter identity (for/list ([t tuples]) (match t
-;             [(list 'tuple atoms ...) (read-atoms atoms)]
-;             [else #f]
-;         ))))
-;     )
-;     (define (read-rel x) (match x
-;         [(list 'sig info atoms ...) 
-;             (define sig (read-label info))
-;             (if sig (make-exact-sbound sig (map list (read-atoms atoms))) #f)]
-;         [(list 'field info tuples ...) (make-exact-sbound (read-label info) (read-tuples tuples))]
-;         [else #f]
-;     ))
-
-;     (when (equal? (first xml) 'alloy) (for ([x xml]) (match x
-;         [(list 'instance _ ...) (set! xml x)]
-;         [else #f]
-;     )))
-;     (match xml
-;         [(list 'instance _ ...)  (filter identity (for/list ([x xml]) (read-rel x)))]
-;         [else (list (read-rel xml))]
-;     )
-; )

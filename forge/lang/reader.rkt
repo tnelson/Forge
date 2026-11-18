@@ -65,8 +65,6 @@
   (syntax-parse tree #:datum-literals (NT-AlloyModule NT-ModuleDecl NT-Import)
     [(NT-AlloyModule (~optional (~and module-decl
                                       (NT-ModuleDecl _ ...)))
-                     ;(~seq (~and import
-                     ;            (Import _ ...)) ...)
                      (~seq (~and import (NT-Import _)) ...)
                      . parags)
      #:with (paragraphs ...)
@@ -87,7 +85,6 @@
         ; The module body with integers coerced, imports removed, declarations hoisted
         (quasisyntax/loc tree
          (NT-AlloyModule (~? module-decl)
-                      ;import ...
                       #,@reordered)))]))
 
 (define (replace-ints-expr expr)

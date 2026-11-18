@@ -457,11 +457,6 @@
        ; This message will be sent when the connection is established
        ; (or re-established). Respond in turn with a data message.
        ; TODO: should we re-enable make-contrast-model-generators?
-       ;;(define inst (get-current-instance)) 
-       ;;(define id curr-datum-id)
-       ;;(define xml (get-xml inst))
-       ;;(define response (make-sterling-data xml id name temporal?))
-       ;;(send-to-sterling response #:connection connection)
        (when (@>= (get-verbosity) VERBOSITY_STERLING)
          (printf "Ignoring Sterling 'data' request...~n"))
        ]

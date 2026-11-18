@@ -206,18 +206,6 @@
      (if (@<= PRIORITY-MULT parent-priority)
          (format "(~a ~a)" mult (deparse-expr (node/formula/multiplicity-expr formula) parent-priority))
          (format "~a ~a" mult (deparse-expr (node/formula/multiplicity-expr formula) parent-priority)))]
-    #;[(node/formula/quantified info quantifier decls form)
-     (format "(~a ~a | ~a)"
-            quantifier
-            (foldl (lambda (elt acc)
-                     (string-append acc ", " (format "~a: ~a"
-                                                     (car elt)
-                                                     (deparse-expr (cdr elt) 0))))
-                   (format "~a: ~a"
-                           (car (first decls))
-                           (deparse-expr (cdr (first decls)) 0))
-                   (rest decls))
-            (deparse-formula form 0))]
     
     [(node/formula/quantified info quantifier decls form)
      (format "(~a ~a | ~a)"

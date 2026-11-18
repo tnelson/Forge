@@ -60,8 +60,6 @@
 
 (define (type-to-XML-string typestring ID-hash)
   (string-append "<type ID=\"" (number->string (hash-ref ID-hash typestring)) "\"/>"))
-  ; Always give univ as parent type, to avoid LN- causing a type error in Sterling (TN Jan 30 '21)
-  ;(string-append "<type ID=\"" (number->string 2) "\"/>"))
 
 (define (types-to-XML-string rel ID-hash)  
   (define xml-expected-types

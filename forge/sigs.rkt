@@ -130,7 +130,6 @@
 (define (state-add-sig state name new-sig extends)
   (when (member name (State-sig-order state))
     (raise-user-error (format "tried to add sig ~a, but it already existed" name)))
-  ;(define new-sig (Sig name rel one abstract extends))
   (when (and extends (not (member extends (State-sig-order state))))
     (raise-user-error (format "Can't extend nonexistent sig ~a. Options were: ~a"
                               extends (State-sig-order state))))
@@ -147,7 +146,6 @@
 (define (state-add-relation state name new-relation)
   (when (member name (State-relation-order state))
     (error (format "tried to add relation ~a, but it already existed" name)))
-  ;(define new-relation (Relation name rel rel-sigs breaker))
   (define new-state-relations (hash-set (State-relations state) name new-relation))
   (define new-state-relation-order (append (State-relation-order state) (list name)))
   (struct-copy State state
@@ -283,9 +281,6 @@
          (define true-sigs (list (thunk (get-sig curr-state sig1))
                                  (thunk (get-sig curr-state sig2))
                                  (thunk (get-sig curr-state sigs)) ...))
-         ; (define true-sigs (map (compose Sig-name ;;; Bugged since relation before sig in #lang forge
-         ;                                 (curry get-sig curr-state ))
-         ;                        (list sig1 sig2 sigs ...)))
          (define true-breaker (~? breaker #f))
          (define checker-hash (get-ast-checker-hash))
          (when (hash-has-key? checker-hash 'field-decl) ((hash-ref checker-hash 'field-decl) true-breaker))
@@ -307,9 +302,6 @@
          (define true-sigs (list (thunk (get-sig curr-state sig1))
                                  (thunk (get-sig curr-state sig2))
                                  (thunk (get-sig curr-state sigs)) ...))
-         ; (define true-sigs (map (compose Sig-name ;;; Bugged since relation before sig in #lang forge
-         ;                                 (curry get-sig curr-state ))
-         ;                        (list sig1 sig2 sigs ...)))
          (define true-breaker (~? breaker #f))
          (define checker-hash (get-ast-checker-hash))
          (when (hash-has-key? checker-hash 'field-decl) ((hash-ref checker-hash 'field-decl) true-breaker))
@@ -755,7 +747,6 @@
                       (close-run name)))]
 
           [(equal? 'expected 'checked)
-           ;#,(syntax/loc stx (check name args ...))
            check-stx
            (define first-instance (tree:get-value (Run-result name)))
            (cond [(Sat? first-instance)
@@ -1031,12 +1022,6 @@
 ;;;;;; Scope/Bound Updaters ;;;;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-; set-bitwidth :: Scope, int -> Scope
-; Updates the bitwidth for the given Scope.
-;(define (set-bitwidth scope n)
-;  (struct-copy Scope scope
-;               [bitwidth n]))
-;
 
 (define (solution-diff s1 s2)
   (map instance-diff (Sat-instances s1) (Sat-instances s2)))

@@ -192,7 +192,6 @@
 
   ; This by itself doesn't allow the type system to differentiate between
   ; the #t and #f modes, even when they are provided as literals. 
-  ;(->* (#:msg String #:context Any) (#:raise? Boolean) Void) ]
   [raise-forge-error (->* () (#:msg String #:context Any #:raise? Boolean) Nothing)] 
   [raise-forge-warning (->* () (#:msg String #:context Any) Void)]
   [relation-arity (-> Any Integer)]
@@ -270,8 +269,3 @@
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-; (: ->immutable/hash (All (K V) (-> (HashTable K V) (Immutable-HashTable K V))))
-; (define (->immutable/hash ht)
-;   (for/hash ([k v]))
-;   (hash-map/copy ht (lambda (k v) (values k v))  #:kind 'immutable))

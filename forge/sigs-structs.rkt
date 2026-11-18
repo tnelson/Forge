@@ -302,7 +302,6 @@
         ; allow for custom solver path given as a string
         'solver (lambda ([x : Any]) (or (member x VALID_BUILTIN_SOLVERS) (string? x)))
         'backend symbol?
-        ; 'verbosity exact-nonnegative-integer?
         'sb exact-nonnegative-integer?
         ; Pardinus only accepts these ranges.
         'coregranularity (lambda ([x : Any]) (and (exact-integer? x) (<= 0 x 3)))
