@@ -31,7 +31,6 @@
 
 (provide constrain-bounds break-rel break-bound break-formulas)
 (provide (rename-out [add-instance instance]) clear-breaker-state)
-(provide make-exact-sbound)
 (provide (struct-out sbound))
 
 ; The `rel` parameter needs to allow for join arguments, not just relations.
@@ -64,8 +63,6 @@
 (: make-sbound (->* (node/expr/relation (Setof Tuple)) ((Setof Tuple)) sbound))
 (define (make-sbound relation lower [upper : (Setof Tuple) (set)]) 
   (sbound relation lower upper))
-(: make-exact-sbound (-> node/expr/relation (Setof Tuple) sbound))
-(define (make-exact-sbound relation s) (sbound relation s s))
 
 ;; N.B. Not to be confused with node/breaking/break
 (struct break ([sbound : sbound] 
@@ -85,22 +82,13 @@
 ; make-break        :: () -> break
 ; make-default      :: () -> break
 
-; BEGIN INSERTED TEMPORARY FIX FOR 'FUNC
 (struct breaker (
     ; priority level of the breaker
     [pri : Integer]
     [break-graph : break-graph]
     [make-break : (-> break)] 
-    [make-default : (-> break)] 
-    [use-formula : Boolean ]) 
-    #:transparent #:mutable)
-
-(: formula-breaker (-> Integer break-graph (-> break) (-> break) breaker))
-(define (formula-breaker pri break-graph make-break make-default)
-    (define res (breaker pri break-graph make-break make-default #f))
-    (set-breaker-use-formula! res #t)
-    res)
-; END INSERTED TEMPORARY FIX FOR 'FUNC
+    [make-default : (-> break)])
+    #:transparent)
 
 (: bound->sbound (-> bound sbound))
 (define (bound->sbound bound) 
@@ -125,14 +113,6 @@
                    (set->list (sbound-lower sbound))
                    (set->list (sbound-upper sbound)))]))
 
-(: bound->break (-> bound break))                
-(define (bound->break bound) (break (bound->sbound bound) (set)))
-(: break-lower (-> break (Setof Tuple)))
-(define break-lower    (compose sbound-lower    break-sbound))
-(: break-upper (-> break (Setof Tuple)))
-(define break-upper    (compose sbound-upper    break-sbound))
-(: break-relation (-> break node/expr))
-(define break-relation (compose sbound-relation break-sbound))
 (: break-bound (-> break bound))
 (define break-bound (compose sbound->bound   break-sbound))
 
@@ -145,10 +125,6 @@
 (define (make-upper-break relation contents [formulas : (Setof node/formula) (set)])
   (break (sbound relation (set) contents) formulas))
 
-(: make-lower-break (-> node/expr/relation (Setof Tuple) (Listof Tuple) (Setof node/formula) break))
-(define (make-lower-break relation contents atom-lists [formulas : (Setof node/formula) (set)])
-  (break (sbound relation contents (list->set (apply cartesian-product atom-lists))) formulas))
-
 ;;;;;;;;;;;;;;
 ;;;; data ;;;;
 ;;;;;;;;;;;;;;
@@ -156,18 +132,6 @@
 ; symbol |-> (pri rel bound atom-lists rel-list) -> breaker
 (: strategies (HashTable Symbol StrategyFunction))
 (define strategies (make-hash))
-
-; compos[{a₀,...,aᵢ}] = b => a₀+...+aᵢ = b
-(: compos (Mutable-HashTable (Setof Symbol) Symbol))
-(define compos (make-hash))
-
-; a ∈ upsets[b] => a > b
-(: upsets (Mutable-HashTable Symbol (Setof Symbol)))
-(define upsets (make-hash))
-
-; a ∈ downsets[b] => a < b
-(: downsets (Mutable-HashTable Symbol (Setof Symbol)))
-(define downsets (make-hash))
 
 ; list of partial instance breakers
 (: instances (Listof sbound))
@@ -214,59 +178,7 @@
 ; strategy :: () -> breaker
 (: add-strategy (-> Symbol StrategyFunction Void))
 (define (add-strategy a strategy)
-    (hash-set! strategies a strategy)
-    (hash-add! upsets a a)      ;; a > a
-    (hash-add! downsets a a))   ;; a < a
-
-(: equiv (-> Symbol Symbol * Any))
-(define (equiv a . bs) 
-    (hash-set! compos (apply set bs) a)
-    (apply stricter a bs)
-    ; TODO: if no fn defined for a, default to naively doing all bs
-)
-(: dominate (-> Symbol Symbol Void))
-(define (dominate a b)  
-    (define upa (hash-ref upsets a))
-    (define downb (hash-ref downsets b))
-    (for ([x (in-set upa)])             ;; x > a
-        (hash-add! upsets b x)          ;; x > b
-        (hash-add! downsets x b)        ;; b < x
-        (hash-set! compos (set b x) x)  ;; x = x + b
-    )
-    (for ([x (in-set downb)])           ;; x < b
-        (hash-add! downsets a x)        ;; x < a
-        (hash-add! upsets x a)          ;; a > x
-        (hash-set! compos (set a x) a)  ;; a = a + x
-    )
-)
-(: stricter (-> Symbol Symbol * Void))
-(define (stricter a . bs) (for ([b bs]) (dominate a b)))
-(: weaker (-> Symbol Symbol * Void))
-(define (weaker a . bs) (for ([b bs]) (dominate b a)))
-
-; TODO: allow syntax like (declare 'a 'b > 'c 'd > 'e 'f)
-(define-syntax declare
-  (syntax-rules (> < =)
-    [(_ a > bs ...) (stricter a bs ...)]
-    [(_ a < bs ...) (weaker a bs ...)]
-    [(_ a = bs ...) (equiv a bs ...)]))
-
-(: min-breaks! (-> (Setof node/breaking/break) (Mutable-HashTable node/breaking/break Integer) Void))
-(define (min-breaks! breaks break-pris)
-    (define changed (ann false Boolean))
-    (hash-for-each compos (λ ([k : (Setof Symbol)] [v : Symbol])
-        (when (subset? k breaks)
-              (set-subtract! breaks k)
-              (set-add! breaks v)
-              ; new break should have priority of highest priority component
-              (define pris (ann (set-map k (lambda ([s : Symbol]) 
-                (hash-ref break-pris (node/breaking/break empty-nodeinfo s)))) (Listof Integer)))
-              (define min-pri (apply min pris)) ; was max-pri (typo?)
-              (hash-set! break-pris (node/breaking/break empty-nodeinfo v) min-pri)
-              (set! changed true))
-    ))
-    (when changed (min-breaks! breaks break-pris))
-)
+    (hash-set! strategies a strategy))
 
 (: break-rel (->* (node/expr/relation) () #:rest (U Symbol node/breaking/break) Void))
 (define (break-rel rel . breaks)
@@ -346,9 +258,6 @@
         (define backup (ann (lambda () (make-hash)) (-> (Mutable-HashTable node/breaking/break Integer))))
         (define break-pris (ann (hash-ref rel-break-pri rel backup) (Mutable-HashTable node/breaking/break Integer)))
 
-        ; compose breaks
-        (min-breaks! breaks break-pris)
-
         (define defined (set-member? defined-relations rel))
         (cond [(set-empty? breaks)
             (unless defined (cons! new-total-bounds bound))
@@ -388,7 +297,7 @@
             ; break the rest the default way (with get-formulas)
             (define broken defined)
             (for ([bkr breakers])
-                (cond [(or broken (breaker-use-formula bkr))
+                (cond [broken
                     (define default ((breaker-make-default bkr)))
                     (set-union! formulas (break-formulas default))
                 ][else
@@ -602,7 +511,6 @@
                     ))
                     (break (bound->sbound bound) formulas)
                 )
-                #f
             )
         ])
     )
@@ -640,7 +548,6 @@
                 (=/func #:info info (join/func #:info info (*/func #:info info rel) term) sig)
             ))
         )))
-        #f
     )
 ))
 
@@ -674,7 +581,6 @@
                 (multiplicity-formula info 'lone (join/func #:info info rel x))   ; lone predecessor
             ))
         )))
-        #f
     )
 ))
 
@@ -707,7 +613,7 @@
             (break-graph (set) (set))
             (λ () (break (bound->sbound bound) formulas))
             (λ () (break (bound->sbound bound) formulas))
-            #f)))
+            )))
 
 (add-strategy 'pfunc
               (λ (pri rel bound atom-lists rel-list [loc #f])
@@ -742,7 +648,6 @@
             (break-graph (set) (set))
             (λ () (break (bound->sbound bound) formulas))
             (λ () (break (bound->sbound bound) formulas))
-            #f
         )
     ))
 
@@ -757,7 +662,7 @@
       (λ ()      
         (make-upper-break rel (list->set (apply cartesian-product atom-lists))))
       (λ () (break (bound->sbound bound) (set)))
-      #f)
+      )
     (raise (format "Internal error in breaks.defaultStrategy. Given: ~a; from:~a~n" rel loc)))))
 
 (add-strategy 'default defaultStrategy)
@@ -770,19 +675,6 @@
 (add-strategy 'pfunc (hash-ref strategies 'pfunc))
 
 
-;;; Domination Order ;;;
-(declare 'func < 'pfunc)
-
-(provide get-co)
-(define co-map (make-hash))
-(hash-set! co-map 'tree 'cotree)
-(hash-set! co-map 'func 'cofunc)
-(hash-set! co-map 'surj 'cosurj)
-(hash-set! co-map 'inj 'coinj)
-(hash-set! co-map 'tree 'cotree)
-(for ([(k v) (in-hash co-map)]) (hash-set! co-map v k))
-(for ([sym '('bij 'pbij 'linear 'plinear 'ref 'irref 'acyclic)]) (hash-set! co-map sym sym))
-(define (get-co sym) (hash-ref co-map sym))
 
 
 

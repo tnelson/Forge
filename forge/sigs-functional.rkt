@@ -374,8 +374,6 @@
          [_ (fail-unless "is")]))
      (match left
        [(? node/expr/relation?) (break-rel left right)]
-       [(node/expr/op-on-exprs/~ info arity (list left-rel))
-        (break-rel left-rel (get-co right))]
        [_ (fail-unless "is")])
      (values scope bound)]
 
