@@ -939,11 +939,24 @@ Returns whether the given run resulted in sat or unsat, respectively.
 
 ; Do not check integer literals with respect to bitwidth for these backends
 (define UNBOUNDED_INT_BACKENDS : (Listof Symbol) '(smtlibtor))
+; 
+; Memoization for `primify`, below; the key is a run-or-state object. 
+(: primify-cache (Weak-HashTable (U Run Run-spec State) (Mutable-HashTable Symbol (Listof Symbol))))
+(define primify-cache (make-weak-hasheq))
 
 ; Turn signame into list of all primsigs it contains
 ; Note we use Alloy-style "_remainder" names here; these aren't necessarily embodied in Forge
 (: primify (-> (U Run Run-spec State) (U Symbol String) (Listof Symbol)))
 (define (primify run-or-state raw-signame)
+  (define signame (if (string? raw-signame) (string->symbol raw-signame) raw-signame))
+  (: prims-by-sig (Mutable-HashTable Symbol (Listof Symbol)))
+  (define prims-by-sig
+    (hash-ref! primify-cache run-or-state
+               (lambda () (ann (make-hasheq) (Mutable-HashTable Symbol (Listof Symbol))))))
+  (hash-ref! prims-by-sig signame (lambda () (primify-uncached run-or-state signame))))
+
+(: primify-uncached (-> (U Run Run-spec State) (U Symbol String) (Listof Symbol)))
+(define (primify-uncached run-or-state raw-signame)
   (let ([signame : Symbol (cond [(string? raw-signame) (string->symbol raw-signame)]
                                 [(Sig? raw-signame) (Sig-name raw-signame)]
                                 [else raw-signame])])
