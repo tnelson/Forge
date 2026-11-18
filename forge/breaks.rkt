@@ -58,7 +58,7 @@
 (struct sbound 
    ([relation : node/expr]
     [lower : (Setof Tuple)]
-    [upper : (Setof Tuple)]) #:transparent)
+    [upper : (U (Setof Tuple) #f)]) #:transparent)
 
 (: make-sbound (->* (node/expr/relation (Setof Tuple)) ((Setof Tuple)) sbound))
 (define (make-sbound relation lower [upper : (Setof Tuple) (set)]) 
@@ -458,7 +458,8 @@
                     (define sub-break ((breaker-make-break sub-breaker)))
                     (define sub-sbound (break-sbound sub-break))
                     (define sub-lower (ann (sbound-lower sub-sbound) (Setof Tuple)))
-                    (define sub-upper (ann (sbound-upper sub-sbound) (Setof Tuple)))
+                    (define sub-upper (or (sbound-upper sub-sbound)
+                                          (raise-forge-error #:msg "Internal error: sub-breaker gave no upper bound" #:context #f)))
 
                     (cond [(set-empty? sigs)
                         ; no sigs are broken, so use sub-bounds for ALL instances
