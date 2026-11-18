@@ -8,7 +8,7 @@
          racket/hash
          racket/struct
          syntax/srcloc
-         (only-in racket range take first second rest flatten empty remove-duplicates string-join 
+         (only-in racket range take first second rest flatten empty remove-duplicates string-join append-map
                          empty? set->list list->set set-subtract set-intersect))
 (require (only-in racket/base [abs racket-abs]))
 
@@ -100,11 +100,14 @@
                    ; Conversion from int values
                    [(ast:node/expr/op-on-ints/sing _ _ `(,ix1))
                     (int-atom (eval-int-expr ix1 bind bitwidth))]
+                   
                    ; Binary set operations
 
-                   ; Union should support n-ary
+                   ; Union should support n-ary. But flatten nested unions, so we only 
+                   ; sort and remove-duplicates here.
                    [(ast:node/expr/op-on-exprs/+ _ _ (list exp1 exps ...))
-                    (apply append (map (lambda (exp) (eval-exp exp bind bitwidth safe)) (cons exp1 exps)))]
+                    (apply append (map (lambda (exp) (eval-exp exp bind bitwidth safe))
+                                       (append-map union-leaves (cons exp1 exps))))]
                    
                    [(ast:node/expr/op-on-exprs/- _ _ `(,exp-1 ,exp-2))
                     (set->list (set-subtract
@@ -245,6 +248,12 @@
     [(eq? 0 result) #f]
     [else result]))
     
+; Extract the operands of a possibly-nested union: (+ a (+ b c)) => (a b c).
+(define (union-leaves e)
+  (match e
+    [(ast:node/expr/op-on-exprs/+ _ _ kids) (append-map union-leaves kids)]
+    [_ (list e)]))
+
 ; Explicitly finds the transitive closure of a relation
 (define (tc lst)
   (define startlen (length lst))
