@@ -69,7 +69,6 @@
 ; temporal operators, but it's rare.)  
 (define/contract (process-core-formula fmla-or-id core-map) 
   (@-> (or/c node? string?) hash? (or/c string? node?))
-  ; (printf "***~n*** process-core-formula ~a ~a~n" fmla-or-id core-map)
   ;(define fmla-num (if (string-prefix? id "f:") (string->number (substring id 2)) #f)]
   (cond [(and (string? fmla-or-id) (string-prefix? fmla-or-id "f:")) 
          (find-core-formula fmla-or-id core-map)]

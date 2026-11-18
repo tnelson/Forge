@@ -43,7 +43,6 @@
      (interpret-expr run-or-state expr relations atom-names quantvars)
      ( print-cmd-cont ")")]
     [(node/formula/quantified info quantifier decls form)
-     ;(writeln formula)
      (print-cmd-cont (format "(~a (" quantifier))
      (define new-quantvars
        (for/fold ([quantvars quantvars])

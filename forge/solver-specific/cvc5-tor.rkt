@@ -240,10 +240,6 @@
     (printf "~nStep 3 (post SMT-LIB conversion):~n")
     (for ([constraint step4])
       (printf "  ~a~n" constraint))
-    ;(printf "~nBounds (post Skolemization):~n")
-    ; (for ([bound step2-bounds])
-    ;   (printf "  ~a/lower: ~a~n" (bound-relation bound) (bound-lower bound))
-    ;   (printf "  ~a/upper: ~a~n" (bound-relation bound) (bound-upper bound)))
       )
   
   ; Now, convert bounds into SMT-LIB (theory of relations) and assert all formulas
@@ -312,7 +308,6 @@
   ; ASSUME: reply format is a single line for the result type, then
   ;   a paren-delimited s-expression with any output of that 
   (smtlib-display stdin "(check-sat)")
-  ;(smtlib-display stdin "(exit)") ; FOR DEBUGGING
   (define sat-answer (read stdout))
 
   ;; TODO: statistics: https://cvc5.github.io/docs/cvc5-1.0.2/statistics.html
@@ -383,13 +378,11 @@
 (define (eval-cond COND #:env env)
   (match COND
     [(list (quote =) (list (quote as) aid atype) vid)
-     ;(printf "     **** eval-cond: ~a ~a ~a~n" (hash-ref env vid) aid (equal? (hash-ref env vid) aid))
      (equal? (hash-ref env vid) (process-atom-id aid))]
     [else (raise-forge-error #:msg (format "unrecognized ite match: ~a" COND)
                              #:context #f)]))
 
 (define (eval-ite s-expr lookup)
-  ;(printf "eval-ite: ~a; ~a~n" s-expr lookup)
   (define (match-branch-helper VAL)
     (match VAL
       [(list (quote ite) C T F) (eval-ite VAL lookup)]
@@ -413,7 +406,6 @@
          (define lookup (for/hash ([v (map car AWT)]
                                    [arg args])
                           (values v arg)))
-         ;(printf "lookup: ~a~n" lookup)
          (eval-ite (list 'ite COND T F) lookup))]))
 
 
@@ -423,7 +415,6 @@
   (define raw-result
     (for/fold ([inst (hash)])
               ([part model-s-expression])
-      ;(printf "smtlib-tor-to-instance: s-expr: ~a~n" part)
       
       ; Results come as a series of s-expressions ("parts"), each of which defines the 
       ; value of a specific SMT solver variable. Usually, these define relation-valued 
@@ -499,12 +490,10 @@
     (define renamed-tuples
       ; for each tuple in the initial instance
       (for/list ([tup initial-tuples])
-        ;(printf "processing tuple: ~a~n" tup)
         (map (lambda (a)
                (cond [(string-prefix? (symbol->string a) "IntAtom")
                       (ia2i (list a))]
                      [else a])) tup)))
-    ;(printf "renamed: ~a~n" renamed-tuples)
     (hash-set inst key renamed-tuples))
   
   (define substituted-result

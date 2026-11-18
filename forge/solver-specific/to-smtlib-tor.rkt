@@ -585,10 +585,8 @@
     [(node/int/op-on-exprs/sum info children)
      ; Since we are following the CRS/cvc4 work for integer-handling, the child must always be a singleton.
      ; This holds whether or not the "sum" was added automatically, but manual/auto affects the nature of the error.
-     ;(printf "qv-types: ~a; qvs: ~a~n" quantvar-types quantvars)
      (define inferred-multiplicity (expression-type-multiplicity
                                     (checkExpression run-or-state (first children) (map pair->list quantvar-types) (make-hash))))
-     ; (printf "***** inferred-multiplicity: ~a ~a~n" (first children) inferred-multiplicity)
      ; TODO: pass back something better than #t or #f
      (unless (member inferred-multiplicity '(one lone no #t))
        (if (get-annotation info 'automatic-int-conversion)

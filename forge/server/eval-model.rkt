@@ -195,7 +195,6 @@
                   (canonicalize-result (list (list result)))
                   (canonicalize-result (remove-duplicates result))))
   
-  ;(printf "exp : ~v = ~v~n" exp ret) 
   ret)
 
 ; extract list of all atoms used across all relations

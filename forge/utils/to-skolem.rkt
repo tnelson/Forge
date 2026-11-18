@@ -121,7 +121,6 @@
           (first upper-bound-list)
           ; otherwise, build product
           (apply cartesian-product (map (lambda (sublist) (apply append sublist)) upper-bound-list))))
-    ;(printf "~nskolem-upper-bound: ~a~n" skolem-upper-bound)
   
     ; 4. add that new relation to the bounds
     (define skolem-bounds (make-bound skolem-relation '() skolem-upper-bound))

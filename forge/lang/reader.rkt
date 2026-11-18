@@ -72,9 +72,6 @@
      #:with (paragraphs ...)
             (quasisyntax/loc tree
               #,(replace-ints-paragraph* (syntax/loc tree parags)))
-            ;(printf "Module-decl ~a~n~n" #'(~? module-decl "None present"))
-            ;(printf "Imports: ~a~n~n" #'(import ...))
-            ;(printf "Paragraphs: ~a~n~n" #'(paragraphs ...))
 
      ;; Reorder paragraphs into tiers (see declaration-hoisting comment above).
      ;; Original order within each tier is preserved.
@@ -94,7 +91,6 @@
                       #,@reordered)))]))
 
 (define (replace-ints-expr expr)
-  ;(printf "Replace-int-expr: ~a~n~n" expr)
   (syntax-parse expr #:datum-literals (Name QualName Const Number)
     [(_ (Const (~optional "-") (Number n)))
      (quasisyntax/loc expr
@@ -112,7 +108,6 @@
     [_ expr]))
 
 (define (replace-ints-paragraph paragraph)
-  ;(printf "Replace-ints-paragraph ~a~n~n" paragraph)
   ; InstDecl : /INST-TOK Name Bounds Scope?  
   (syntax-parse paragraph #:datum-literals (IntsDecl Bounds)
     [(InstDecl name 
@@ -220,13 +215,10 @@
          
          (define module-datum `(module forge-mod forge/lang/expander
                                  ,@final))
-         
+
          ; For debugging purposes, convert to a datum first or pretty-format will truncate.
-         ;(printf "Ints-coerced: ~a~n" (pretty-format (syntax->datum ints-coerced)))
-         ;printf "Parse-tree (converted to datum:~n   ~a~n" (pretty-format (syntax->datum parse-tree)))
-         
+
          (define result (datum->syntax #f module-datum))
-         ;(printf "debug result of expansion: ~a~n" result)
          result)
        )]))
        

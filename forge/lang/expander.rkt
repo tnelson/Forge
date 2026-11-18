@@ -595,7 +595,6 @@
               ;(~optional "exactly")
               bounds:BoundClass ...)
       #:attr translate (begin
-                         ;(printf "Bounds case 1: ~a~n" (build-source-location this-syntax))
                          (datum->syntax #'(bounds ...)
                                         ; Note: syntax->list keeps the syntax objects within, along with
                                         ; their context/srcloc. (The syntax/loc here doesn't seem to be
@@ -1118,7 +1117,6 @@
                                           #'cmd-type)]
                  [name #`(~? name.name #,(make-temporary-name stx))]
                  [preds #'(~? pred.name preds)])
-     ;(printf "Trying to make target: ~a~n" #'tomf.translate_tgt)
     #`(begin
        #,(syntax/loc stx (cmd-type name (~? (~@ #:preds [preds]))
                       (~? (~@ #:scope scope.translate))
@@ -1135,7 +1133,6 @@
 (define-syntax (NT-TestDecl stx)
   ; This stx object currently has the location of the enclosing TestBlock
   ; ... unless there is a name provided? (already, at this point, even before the parse below)
-  ;(printf "expander for TestDecl: ~a~n" stx)
   (syntax-parse stx
   [((~datum NT-TestDecl) (~optional name:NameClass)
                         (~optional parameters:ParametersClass)
@@ -1160,7 +1157,6 @@
 
 ; TestExpectDecl : TEST-TOK? EXPECT-TOK Name? TestBlock
 (define-syntax (NT-TestExpectDecl stx)
-  ;(printf "expander for TestExpectDecl: ~a~n" stx)
   (syntax-parse stx
   [((~datum NT-TestExpectDecl) (~optional (~and "test" test-tok))
                               "expect" 
@@ -1194,7 +1190,6 @@
 (define-syntax (NT-QuantifiedPropertyDecl stx)
   (syntax-parse stx
     [qpd:QuantifiedPropertyDeclClass  
-    ;;;#:do [(printf "QuantifiedPropertyDeclClass.PropExprs: ~a~n" (syntax->datum #'qpd.prop-exprs))]
      (with-syntax* 
         ( [(exp-pred-exprs ...) (datum->syntax stx (cons (syntax->datum #'qpd.pred-name) (syntax->datum #'qpd.pred-exprs)) stx)]
           [pred-consolidated (if (equal? (syntax->datum #'qpd.pred-exprs) '()) 
@@ -1373,7 +1368,6 @@
                              #:stx #,(build-source-location stx))))]))
 
 (define-syntax (NT-Expr stx)
-  ;(printf "Debug: Expr: ~a~n" stx)
   (syntax-parse stx
   [((~datum NT-Expr) "let" decls:LetDeclListClass bob:BlockOrBarClass)
    (syntax/loc stx (let decls.translate bob.exprs))]
@@ -1549,7 +1543,6 @@
 
   [((~datum NT-Expr) name:NameClass "[" exprs:ExprListClass "]")
    ; Is this production ever used? Both box join and helper use seem to use the Expr version below.
-   ; (printf "expander: Name[Expr...]: ~a~n" #'name)
    (with-syntax ([name #'name.name]
                  [(exprs ...) (datum->syntax #f (map my-expand (syntax->list #'(exprs.exprs ...))))])
      (syntax/loc stx (name exprs ...)))]
@@ -1582,7 +1575,6 @@
 
   [((~datum NT-Expr) name:QualNameClass)
    (define local-value (syntax-local-value #'name.name (lambda () #f)))
-   ; (printf "local-value for ~a: ~a~n" #'name.name local-value)
    (if local-value
        ; if we have a local-value, it's likely a Forge macro or Forge-defined helper procedure
        ; (Node ops in the AST are defined as _macros_ to allow the capture of stx location. Thus, 
@@ -1617,7 +1609,6 @@
 
 ; *New* instance of the structure, with the same values but a (possibly) new source loc
 (define (correct-id-loc astnode #:loc [loc #f])
-  ;(printf "correct-id-loc: ~a; ~a; ~a~n" astnode (node? astnode) loc)
   
   (define new-info (if (node? astnode)
                        (nodeinfo loc (nodeinfo-lang (node-info astnode)) #f)

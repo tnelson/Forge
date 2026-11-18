@@ -116,7 +116,6 @@ This function just recreates the model, but using names instead of numbers.
                   (hash-set! translated-model
                              (rel arity-types "univ" (symbol->string relation-num))
                              translated-tuples)]))|#
-         ;(printf "Translated model: ~a~n" translated-model)
          
          (define metadata (fifth model))
 

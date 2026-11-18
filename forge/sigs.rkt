@@ -283,7 +283,6 @@
          (define true-sigs (list (thunk (get-sig curr-state sig1))
                                  (thunk (get-sig curr-state sig2))
                                  (thunk (get-sig curr-state sigs)) ...))
-         ;(printf "relation sigs: ~a~n" (list sig1 sig2 sigs ...))
          ; (define true-sigs (map (compose Sig-name ;;; Bugged since relation before sig in #lang forge
          ;                                 (curry get-sig curr-state ))
          ;                        (list sig1 sig2 sigs ...)))
@@ -308,7 +307,6 @@
          (define true-sigs (list (thunk (get-sig curr-state sig1))
                                  (thunk (get-sig curr-state sig2))
                                  (thunk (get-sig curr-state sigs)) ...))
-         ;(printf "relation sigs: ~a~n" (list sig1 sig2 sigs ...))
          ; (define true-sigs (map (compose Sig-name ;;; Bugged since relation before sig in #lang forge
          ;                                 (curry get-sig curr-state ))
          ;                        (list sig1 sig2 sigs ...)))
@@ -595,8 +593,6 @@
                             (~and #:target-contrast target-contrast)))) ...)
      
      (quasisyntax/loc stx (begin
-         ;(define checker-hash (get-ast-checker-hash))
-;         (printf "sigs run ~n ch= ~a~n" checker-hash)
                      
          (define run-name (~? (~@ 'name) (~@ 'no-name-provided)))
          (define run-preds (~? (list preds ...) (~? (list pred) (list))))         
@@ -957,7 +953,6 @@
                            #:msg "Could not evaluate in current language - must be surface or core."
                            #:context #f)]))
 
-            ;(printf "Run Atoms: ~a~n" (Run-atoms run))
 
             ; Evaluate command
             (define full-command (datum->syntax #f `(let

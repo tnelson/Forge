@@ -26,7 +26,6 @@
 ; In the case of an expression, the output is an expression-type struct, which
 ; the language-specific checking might use to decide whether there is an error.
 (define (check-and-output ast-node to-handle checker-hash result [child-types #f])
-  ;(printf "check-and-output: ~a; ~a; ~a; ~a~n" ast-node to-handle result child-types)
   (begin
     (when (hash-has-key? checker-hash to-handle)
       ((hash-ref checker-hash to-handle) ast-node result child-types))
@@ -74,11 +73,8 @@
            (map list (deprimify run-or-state (map car domain-products)))
            domain-products))
      
-     ;(printf "Checking idx=~a~n deprim-type=~a~n deprim-domain=~a~n"
-     ;        arg-position deprimified-arg-union-of-products deprimified-domain-products)
      (for-each
       (lambda (a-product)
-        ; (printf "    Checking the product: ~a~n" a-product)
         
         (unless (member a-product domain-products)
           (raise-forge-error
@@ -358,7 +354,6 @@
 ; wrap around checkExpression-mult to provide check for multiplicity, 
 ; while throwing the multiplicity away in output; DO NOT CALL THIS AS PASSTHROUGH!
 (define (checkExpression run-or-state expr quantvars checker-hash)
-  ;(printf "checkExpression for: ~a~n" expr)
   (match expr 
     ; extra work done on int - adding 1 to a var
     [(? node/int?) (expression-type (list (list 'Int)) 'one #f (list 'Int))]
@@ -497,7 +492,6 @@
  
     ; quantifier variable
     [(node/expr/quantifier-var info arity sym name)
-     ;(printf "quantifier-var case. expr: ~a; quantvars: ~a~n" expr quantvars)z
      (check-and-output expr
                        node/expr/quantifier-var
                        checker-hash
@@ -592,7 +586,6 @@
                              #:context context)]))
 
 (define (join-multiplicity args child-values join-result context)
-  ;(printf "join-multiplicity: ~a; child-values: ~a~n" context child-values)
   ;; TODO: very coarse
   (cond
     ; Do not try to infer anything beyond "set" if the LHS is not a singleton. This is a
@@ -927,7 +920,6 @@
 
 (module+ test
   (require rackunit)
-  ;(printf "Testing last-checker~n")
   (check-equal?
    (list->set (check-join '( ((n1 a) (n2 b) (n2 c) (n3 c) (n4 d))
                              ((a x) (k x) (c y) (c z) (e k))

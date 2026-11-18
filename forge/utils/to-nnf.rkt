@@ -5,9 +5,6 @@
 
 ; TODO: Note that we do not yet descend into formulas with set comprehensions.
 
-; TODO: use verbosity checker to determine whether to print debug statements.
-;  (when (@>= (get-verbosity) VERBOSITY_DEBUG)
-;    (printf "to-nnf: interpret-___: ~a~n" arg))
 
 (require 
   forge/sigs-structs

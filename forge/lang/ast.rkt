@@ -62,7 +62,6 @@
   [(define (write-proc self port mode)
      (match-define (nodeinfo loc lang annotations) self)
      ; hide nodeinfo when printing; don't print anything or this will become overwhelming
-     ;(fprintf port "")
      (void))])
 
 ; The default, empty nodeinfo struct
@@ -99,7 +98,6 @@
 ; Base node struct, should be ancestor of all AST node types
 ; Should never be directly instantiated
 (struct node (info) #:transparent
-  ;#:guard (lambda (info name) (printf "creating a node; ~a; ~a~n" (nodeinfo? info) name))
   )
 
 ; Should never be directly instantiated
@@ -355,7 +353,6 @@
     (printf (string-append "No checker-hash given. ast-node was: ~a~n"
                            "Ignoring language-specific checks for this node. (If this was not a formula or expression "
                            "created in the Racket/DrRacket REPL, please report this as a bug.)~n") ast-node))
-  ;(printf "checking ast-node:~a  to-handle:~a  has-key? ~a ~n" ast-node to-handle (hash-has-key? checker-hash to-handle))
   (when (and checker-hash (hash-has-key? checker-hash to-handle))
     ((hash-ref checker-hash to-handle) ast-node info)))
 
@@ -378,7 +375,6 @@
   
   (syntax-case stx ()
     [(_ id parent arity checks ... #:lift @op #:type childtype #:elim-unary? elim-unary?)
-     ;(printf "define-node-op defn case: ~a~n" stx)
      (with-syntax ([intermediate (format-id #'id "~a~a" #'parent (childtype->suffix #'childtype))]
                    [name (format-id #'id "~a~a/~a" #'parent (childtype->suffix #'childtype) #'id)]
                    [parentname (format-id #'id "~a" #'parent)]
@@ -405,9 +401,6 @@
            
            (define (functionname #:info [info empty-nodeinfo] . raw-args)
              (define ast-checker-hash (get-ast-checker-hash))
-             ;(printf "ast-checker-hash ~a~n" (get-ast-checker-hash))
-             ;(printf "name: ~a raw-args: ~a ~n" 'name raw-args)
-             ;(printf "name: ~a args: ~a loc:~a ~n" 'name raw-args (nodeinfo-loc info))
 
              ; Perform intexpr->expr and expr->intexpr coercion if needed:             
              (define args (cond [(equal? node/expr? childtype)
@@ -447,8 +440,6 @@
              (syntax-case stx2 ()
                 [(_ (#:lang check-lang) e ellip)                
                   (quasisyntax/loc stx2
-                    ;(begin
-                    ;(printf "arguments:~a ; ~a ; ~a ~n" check-lang e ellip))]
                     (macroname/info (nodeinfo #,(build-source-location stx2) check-lang #f) e ellip))]
                 [(_ e ellip)                
                   (quasisyntax/loc stx2
@@ -470,8 +461,6 @@
              (syntax-case stx2 ()                              
                [(_ info e ellip)
                 (quasisyntax/loc stx2
-                  ;(printf "all args ~a ;   ~a ;  ~a ~n" info e ellip))]))
-                  ; (printf "in created macro, arg location: ~a~n" (build-source-location stx2))
                   (begin
            
                     ; Keeping this comment in case these macros need to be maintained:
@@ -1230,10 +1219,8 @@
      (begin
        ; don't want to call struct-accessors every time this lambda is invoked,
        ; so call once at expansion time of make-robust...
-       ;(printf "structname: ~a~n" (syntax->datum #'structname))       
        #`(lambda (a b equal-proc)           
            (andmap (lambda (access)           
-                     ;(printf "checking equality for ~a, proc ~a~n" structname access)
                      (define vala (access a))
                      (define valb (access b))
                      ; Some AST fields may be thunkified
@@ -1267,27 +1254,22 @@
           ; zero-arity procedure (a "thunk"): invoke it and then hash the result
           [(and (procedure? vala)                
                 (equal? (procedure-arity vala) 0))
-           ;(printf "field was zero arity procedure: ~a~n" vala)
            (@* multiplier (hash-proc (vala)))]
 
           ; node/expr? (but not a zero-arity procedure): just hash it
           [(node/expr? vala)
-           ;(printf "field was expr: ~a~n" vala)
            (@* multiplier (hash-proc vala))]
 
           ; node/formula? (but not a zero-arity procedure): just hash it
           [(node/formula? vala)
-           ;(printf "field was formula: ~a~n" vala)
            (@* multiplier (hash-proc vala))]
 
           ; not a procedure at all: just hash it
           [(not (procedure? vala))
-           ;(printf "field was other non-procedure: ~a~n" vala)
            (@* multiplier (hash-proc vala))]
 
           [else (raise (format "Non-thunk procedure field when hashing for ~a. Got: ~a"
                               structname vala))])))
-    ;(printf "in mrnhs for ~a/~a: ~a, multiplied: ~a~n" structname offset a multiplied)    
     (apply @+ multiplied)))
 
 
