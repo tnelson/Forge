@@ -68,6 +68,11 @@
 (: server-state (Boxof (U False Server-ports)))
 (define server-state (box #f))
 
+; Record the kind of backend and problem-type the process was started for. 
+; If they change, Forge may need to restart its solver process with new parameters.
+(: server-kind (Boxof Any))
+(define server-kind (box #f))
+
 ; In order to prevent a bad crash, keep track of run-names used in the past, 
 ; and throw a friendlier error if one is re-used. 
 (define run-name-history (box (list)))
@@ -213,6 +218,9 @@
   ; Initializing our backend process, and getting ports for communication with it.
   ; This was originally just Kodkod; some of that terminology remains.
   (define backend (get-option run-spec 'backend))
+  (define kind (list backend (get-option run-spec 'problem_type)))
+  (unless (equal? (unbox server-kind) kind) (stop-solver-process!))
+  (set-box! server-kind kind)
   (define unboxed (unbox server-state))
   (define-values (stdin stdout stderr shutdown is-running?)
     (cond
@@ -259,6 +267,10 @@
         java-exe)]
 
       [else (raise-forge-error #:msg (format "Invalid backend: ~a" backend) #:context run-command)]))
+
+  ; Remember the solver process now. If this run fails before sending anything, 
+  ; we want to use the existing process, rather than starting a new one.
+  (set-box! server-state (Server-ports stdin stdout stderr shutdown is-running?))
 
   ; Confirm that if the user is invoking a custom solver, that custom solver exists
   (define solver-opt (get-option run-spec 'solver))
@@ -332,6 +344,8 @@
   ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
   
   (define get-next-model
+    ; If sending fails partway, stop the solver process and let the next run restart.
+    (with-handlers ([exn:fail? (lambda ([e : exn:fail]) (stop-solver-process!) (raise e))])
     (cond [(equal? backend 'smtlibtor)
            (begin
              (define-values (all-rels core-map)
@@ -343,7 +357,7 @@
              (define-values (all-rels core-map)
                (send-to-kodkod run-name run-spec bitwidth all-atoms solverspec total-bounds bound-lower bound-upper run-constraints stdin stdout stderr))
              (lambda ([mode : String]) (get-next-kodkod-model is-running? run-name all-rels all-atoms core-map stdin stdout stderr mode)))]
-          [else (raise-forge-error #:msg (format "Invalid backend: ~a" backend) #:context run-command)]))
+          [else (raise-forge-error #:msg (format "Invalid backend: ~a" backend) #:context run-command)])))
            
      
   
@@ -359,7 +373,6 @@
     (tree:make-node/func get-next-model "start" next-button))
 
   (define new-server-state (Server-ports stdin stdout stderr shutdown is-running?))
-  (set-box! server-state new-server-state)
 
   (values results 
           all-atoms 

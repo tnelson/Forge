@@ -721,26 +721,27 @@ Returns whether the given run resulted in sat or unsat, respectively.
 (: close-run (-> Run Void))
 (define (close-run run)
   (unless (is-run-closed? run)
-    (assert-solver-process-alive run)
     (when (>= (get-verbosity) VERBOSITY_HIGH)
           (printf "Clearing run ~a. Keeping engine process active...~n" (Run-name run)))
     ; Cut off this Run's ability to query the solver, since it's about to be closed
     ; This state is referenced in the instance-generator thunk
     (add-closed-run-name! (Run-name run))
 
-    ; Since we're using a single process now, send it instructions to clear this run
-    ; Different backends will be cleared in different ways.
-    (define backend (get-option (Run-run-spec run) 'backend))
-    (match backend
-      ['pardinus
-       (parameterize ([pardinus-port (get-stdin run)])
-         (pardinus-clear (Run-name run))
-         (flush-output (get-stdin run)))]
-      ['smtlibtor
-       (cvc5-smtlib-display (get-stdin run) "(reset)")]
-      [else
-       (raise-forge-error #:msg (format "Unsupported backend when closing solver run: ~a" backend)
-                          #:context #f)])))
+    ; If the process is already gone, we have nothing to clear anymore. 
+    (when (is-solver-process-alive? run)
+      ; Since we're using a single process now, send it instructions to clear this run
+      ; Different backends will be cleared in different ways.
+      (define backend (get-option (Run-run-spec run) 'backend))
+      (match backend
+        ['pardinus
+         (parameterize ([pardinus-port (get-stdin run)])
+           (pardinus-clear (Run-name run))
+           (flush-output (get-stdin run)))]
+        ['smtlibtor
+         (cvc5-smtlib-display (get-stdin run) "(reset)")]
+        [else
+         (raise-forge-error #:msg (format "Unsupported backend when closing solver run: ~a" backend)
+                            #:context #f)]))))
 
 ; is-solver-process-alive? :: Run -> Boolean
 ; This reports whether the _solver server process_ is running;
