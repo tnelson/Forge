@@ -727,9 +727,25 @@
 
 (add-strategy 'default defaultStrategy)
 
+;; For consistency between a bounds-break and a formula-break, a formula break needs to ensure 
+;; the fixed ordering is constant across states. 
+(: in-all-states (-> StrategyFunction StrategyFunction))
+(define (in-all-states f)
+  (λ (pri rel bound atom-lists rel-list [loc #f])
+    (define bkr (f pri rel bound atom-lists rel-list loc))
+    (define r (bound-relation bound))
+    (: with-frozen (-> (-> break) (-> break)))
+    (define ((with-frozen make))
+      (define b (make))
+      (define frozen (always/func (=/func (node/expr/op-on-exprs/prime empty-nodeinfo (node/expr-arity r) (list r)) r)))
+      (break (break-sbound b) (set-add (break-formulas b) frozen)))
+    (if (node/expr/relation-is-variable r)
+        (breaker pri (breaker-break-graph bkr) (with-frozen (breaker-make-break bkr)) (with-frozen (breaker-make-default bkr)))
+        bkr)))
+
 ; this one cannot afford to go to purely formula break
-(add-strategy 'linear (variadic 2 (hash-ref strategies 'linear)))
-(add-strategy 'plinear (variadic 2 (hash-ref strategies 'plinear)))
+(add-strategy 'linear (in-all-states (variadic 2 (hash-ref strategies 'linear))))
+(add-strategy 'plinear (in-all-states (variadic 2 (hash-ref strategies 'plinear))))
 
 (add-strategy 'func (hash-ref strategies 'func))
 (add-strategy 'pfunc (hash-ref strategies 'pfunc))
