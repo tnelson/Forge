@@ -964,12 +964,12 @@
     ; A variable declared with `set` multiplicity is allowed any arity, not just arity=1. 
     (unless (or (equal? (node/expr-arity e) 1)
                 (equal? 'set (node/expr/quantifier-var-mult v)))
-      (raise-forge-error #:msg (format "~a quantifier expected an arity-1 expression for domain, got ~a" quantifier e)
+      (raise-forge-error #:msg (format "~a quantifier expected an arity-1 expression for domain, got ~a" quantifier (deparse e))
                          #:context (if (node? e) e info)))
     (unless (equal? (node/expr-arity v) (node/expr-arity e))
       (raise-forge-error #:msg (format "~a quantifier variable ~a has arity ~a, but its domain ~a has arity ~a"
-                                       quantifier v (node/expr-arity v) e (node/expr-arity e))
-                         #:context v)))
+                                       quantifier v (node/expr-arity v) (deparse e) (node/expr-arity e))
+                         #:context (if (srcloc-source (nodeinfo-loc (node-info v))) v info))))
   (unless (or (node/formula? formula) (equal? #t formula))
     (raise-forge-error #:msg (format "~a quantifier body expected a formula, got ~a" quantifier formula)
                        #:context (if (node? formula) formula info)))

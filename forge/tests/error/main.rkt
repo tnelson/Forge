@@ -236,6 +236,7 @@
     (list "bad_option_enum.frg" #rx"requires one of")
     (list "quant-over-set.frg" #rx"quant-over-set.frg:7:10.*Unsupported use of `set` in the declaration of X.*effectively existential")
     (list "paren-application.frg" #rx"paren-application.frg:5:31.*use square brackets: p\\[x\\], not p\\(x\\)")
+    (list "bitwidth-overlap-count.frg" #rx"Upper bound too large for given bit width; Sig: Q, Upper-bound: 9, Max-int: 7. Try a larger bit width")
   ))
 
 

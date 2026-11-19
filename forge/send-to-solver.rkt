@@ -1146,8 +1146,9 @@ Please declare a sufficient scope for ~a."
             (let ()
               (unless (< int-lower max-int)
                 (raise-run-error (format (string-append "Lower bound too large for given bit width; "
-                                                        "Sig: ~a, Lower-bound: ~a, Max-int: ~a")
-                                         sig int-lower (sub1 max-int))
+                                                        "Sig: ~a, Lower-bound: ~a, Max-int: ~a. "
+                                                        "Try a larger bit width (e.g., `for 5 Int`).")
+                                         (Sig-name sig) int-lower (sub1 max-int))
                                  run-command
                                  (get-blame-node run-spec sig)))
               (define at-least (||/func #:info info
@@ -1159,8 +1160,9 @@ Please declare a sufficient scope for ~a."
             (let ()
               (unless (< int-upper max-int)
                 (raise-run-error (format (string-append "Upper bound too large for given bit width; "
-                                                        "Sig: ~a, Upper-bound: ~a, Max-int: ~a")
-                                         sig int-upper (sub1 max-int))
+                                                        "Sig: ~a, Upper-bound: ~a, Max-int: ~a. "
+                                                        "Try a larger bit width (e.g., `for 5 Int`).")
+                                         (Sig-name sig) int-upper (sub1 max-int))
                                  run-command
                                  (get-blame-node run-spec sig)))
               (define at-most (||/func #:info info
