@@ -121,6 +121,11 @@
 (define (make-exact-break relation contents [formulas : (Setof node/formula) (set)])
   (break (sbound relation contents contents) formulas))
 
+;; CLAUDE: successor pairs of a chain over atoms, in order (empty for 0 or 1 atoms)
+(: chain-tuples (-> (Listof FAtom) (Setof Tuple)))
+(define (chain-tuples atoms)
+  (if (null? atoms) (set) (list->set (map (ann list (-> FAtom FAtom (Listof FAtom))) (drop-right atoms 1) (cdr atoms)))))
+
 (: make-upper-break (->* (node/expr/relation (Setof Tuple)) ((Setof node/formula)) break))
 (define (make-upper-break relation contents [formulas : (Setof node/formula) (set)])
   (break (sbound relation (set) contents) formulas))
@@ -446,6 +451,25 @@
         ])
     )
 
+    ; `is linear` makes its sig exact, like util/ordering in Alloy. For consistency, this 
+    ; restriction is added whether or not the breaker can be applied as a bound (vs. a formula). 
+    (define linear-sigs (ann (make-hash) (Mutable-HashTable node/expr/relation node/breaking/break)))
+    (hash-for-each rel-breaks (λ ([r : node/expr/relation] [bs : (Setof node/breaking/break)])
+      (define rl (hash-ref relations-store r (lambda () (list))))
+      (for ([b bs] #:when (and (eq? (node/breaking/break-break b) 'linear) (>= (length rl) 2)))
+        (hash-set! linear-sigs (list-ref rl (- (length rl) 2)) b))))
+    (set! new-total-bounds
+      (for/list : (Listof bound) ([b new-total-bounds])
+        (define brk (hash-ref linear-sigs (bound-relation b) #f))
+        (cond [(and brk (not (= (length (bound-lower b)) (length (bound-upper b)))))
+               (raise-forge-warning
+                #:msg (format "`is linear` makes ~a exact: it will contain exactly ~a atom~a."
+                              (relation-name (bound-relation b)) (length (bound-upper b))
+                              (if (= 1 (length (bound-upper b))) "" "s"))
+                #:context (nodeinfo-loc (node-info brk)))
+               (make-bound (bound-relation b) (bound-upper b) (bound-upper b))]
+              [else b])))
+
     (when (>= (get-verbosity) VERBOSITY_HIGH)
       (printf "~nBreakers ran.~n        New total bounds:~a~n        New formulas:~a~n" 
         new-total-bounds formulas))
@@ -568,10 +592,9 @@
     (define x (node/expr/quantifier-var (just-location-info loc) 1 'x 'x))
     (breaker pri
         (break-graph (set sig) (set))
-        (λ () (make-exact-break rel (list->set (map (ann list (-> FAtom FAtom (Listof FAtom))) 
-                                                  (drop-right atoms 1) (cdr atoms))) 
-                                (set)))
-        (λ () (break (bound->sbound bound) (set
+        (λ () (make-exact-break rel (chain-tuples atoms) (set)))
+        
+        (λ () (break (bound->sbound bound) (if (null? atoms) (set) (set
             (quantified-formula info 'some (list (cons init sig)) (&&/func #:info info
                 (multiplicity-formula info 'no (join/func #:info info rel init))
                 (quantified-formula info 'all (list (cons x (-/func #:info info sig init)))
@@ -585,7 +608,7 @@
                                               (multiplicity-formula info 'one (join/func #:info info x rel)))
                 (=/func #:info info (join/func #:info info (*/func #:info info rel) term) sig)
             ))
-        )))
+        ))))
     )
 ))
 
@@ -600,8 +623,7 @@
         (λ () (break
             (sbound rel 
                 (set) ;(set (take atoms 2))
-                (list->set (map (ann list (-> FAtom FAtom (Listof FAtom))) 
-                                (drop-right atoms 1) (cdr atoms)))
+                (chain-tuples atoms)
             )
             (set
                 (multiplicity-formula info 'lone 
