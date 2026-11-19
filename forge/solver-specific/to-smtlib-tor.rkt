@@ -458,7 +458,7 @@
                         #:context info)]
     [(? node/expr/op? op)
      (convert-expr-op run-or-state expr relations atom-names quantvars quantvar-types (node/expr/op-children op) bounds)]
-    [(node/expr/quantifier-var info arity sym name)
+    [(node/expr/quantifier-var info arity sym name mult)
      ; If this is an integer-unwrapping quantifier variable, it will be declared of sort Int,
      ; and should not be wrapped to make it a singleton-set-of-tuples. Otherwise, it must be
      ; wrapped so that relational operators can work with it directly.

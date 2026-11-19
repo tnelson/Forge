@@ -1,4 +1,7 @@
 #lang forge
--- Higher-order quantification is not supported (for now)
+
+option run_sterling off
+
+-- This should error: A `set` quantifier that is not effectively existential. 
 sig A {}
-test expect { t: { some X: set A | #X > 1 } is sat }
+run { all X: set A | #X > 1 }

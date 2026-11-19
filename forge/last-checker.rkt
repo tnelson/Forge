@@ -488,7 +488,7 @@
      (checkExpressionOp run-or-state expr quantvars (node/expr/op-children op) checker-hash)]
  
     ; quantifier variable
-    [(node/expr/quantifier-var info arity sym name)
+    [(node/expr/quantifier-var info arity sym name mult)
      (check-and-output expr
                        node/expr/quantifier-var
                        checker-hash

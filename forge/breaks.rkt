@@ -499,7 +499,7 @@
             (define postfix-lists (take-right atom-lists n))
             (define vars (for/list ([p prefix]) : (Listof node/expr/quantifier-var)
                 (let ([symv (gensym "v")])
-                    (node/expr/quantifier-var empty-nodeinfo 1 symv symv))
+                    (node/expr/quantifier-var empty-nodeinfo 1 symv symv 'one))
             ))
             (define new-rel (build-box-join rel vars))  ; rel[a][b]...
             (define sub-breaker (f pri new-rel bound postfix-lists postfix loc))
@@ -586,9 +586,9 @@
     (define atoms (first atom-lists))
     (define sig (first rel-list))
     (define info (just-location-info loc))
-    (define init (node/expr/quantifier-var (just-location-info loc) 1 'init 'init))
-    (define term (node/expr/quantifier-var (just-location-info loc) 1 'term 'term))
-    (define x (node/expr/quantifier-var (just-location-info loc) 1 'x 'x))
+    (define init (node/expr/quantifier-var (just-location-info loc) 1 'init 'init 'one))
+    (define term (node/expr/quantifier-var (just-location-info loc) 1 'term 'term 'one))
+    (define x (node/expr/quantifier-var (just-location-info loc) 1 'x 'x 'one))
     (breaker pri
         (break-graph (set sig) (set))
         (λ () (make-exact-break rel (chain-tuples atoms) (set)))
@@ -615,8 +615,8 @@
     (define atoms (first atom-lists))
     (define sig (first rel-list))
     (define info (just-location-info loc))
-    (define init (node/expr/quantifier-var (just-location-info loc) 1 'init 'init))
-    (define x (node/expr/quantifier-var (just-location-info loc) 1 'x 'x))
+    (define init (node/expr/quantifier-var (just-location-info loc) 1 'init 'init 'one))
+    (define x (node/expr/quantifier-var (just-location-info loc) 1 'x 'x 'one))
     (breaker pri
         (break-graph (set sig) (set))
         (λ () (break
@@ -656,13 +656,13 @@
         (cond
           [(empty? (rest (rest rllst)))
            (let* ([var-id (gensym 'func)]
-                  [a (node/expr/quantifier-var (just-location-info loc) 1 var-id var-id)])
+                  [a (node/expr/quantifier-var (just-location-info loc) 1 var-id var-id 'one)])
              (quantified-formula (just-location-info loc) 'all
                                   (ann (list (cons a (first rllst))) (Listof (Pairof node/expr/quantifier-var node/expr)))
                                   (one/func #:info (just-location-info loc) (funcformulajoin (cons a quantvarlst)))))]
             [else
              (let* ([var-id (gensym 'func)]
-                  [a (node/expr/quantifier-var (just-location-info loc) 1 var-id var-id)])
+                  [a (node/expr/quantifier-var (just-location-info loc) 1 var-id var-id 'one)])
              (quantified-formula (just-location-info loc) 'all
                                   (list (cons a (first rllst)))
                                   (funcformula (rest rllst) (cons a quantvarlst))))]))
@@ -691,12 +691,12 @@
                   (cond
                     [(empty? (rest (rest rllst)))
                      (let* ([var-id (gensym 'pfunc)]
-                            [a (node/expr/quantifier-var info 1 var-id var-id)])
+                            [a (node/expr/quantifier-var info 1 var-id var-id 'one)])
                        (quantified-formula info 'all
                                             (list (cons a (first rllst)))
                                             (multiplicity-formula info 'lone (pfuncformulajoin (cons a quantvarlst)))))]
                     [else (let* ([var-id (gensym 'pfunc)]
-                                 [a (node/expr/quantifier-var info 1 var-id var-id)])
+                                 [a (node/expr/quantifier-var info 1 var-id var-id 'one)])
                             (quantified-formula info 'all
                                                  (list (cons a (first rllst)))
                                                  (pfuncformula (rest rllst) (cons a quantvarlst))))]))

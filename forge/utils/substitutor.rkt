@@ -156,7 +156,7 @@
          expr]  ; Already checked target above
         [(? node/expr/op?)
          (substitute-expr-op run-or-state expr relations atom-names quantvars (node/expr/op-children expr) target value)]
-        [(node/expr/quantifier-var info arity sym name)
+        [(node/expr/quantifier-var info arity sym name mult)
          expr]  ; Already checked target above
         [(node/expr/comprehension info len decls form)
          (define new-vs-and-decls

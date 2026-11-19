@@ -129,6 +129,15 @@
     (define expr-node (node/formula/multiplicity-expr formula-node))
     (check-top-expression formula-node expr-node t #:allow-sigs #t)))
 
+(define (check-formula-quantified formula-node node-type child-types)
+  (when (eq? (nodeinfo-lang (node-info formula-node)) LANG_ID)
+    (for ([decl (node/formula/quantified-decls formula-node)])
+      (when (equal? 'set (node/expr/quantifier-var-mult (car decl)))
+        (raise-forge-error
+         #:msg (format "Quantifying over sets (`set` in the declaration of ~a) is not used in Froglet, but is reserved for use in other Forge languages."
+                       (node/expr/quantifier-var-name (car decl)))
+         #:context (car decl))))))
+
 
 
 (define (check-node-expr-op-+ expr-node node-type child-types)
@@ -178,6 +187,7 @@
 
 (define bsl-checker-hash (make-hash))
 (hash-set! bsl-checker-hash node/formula/multiplicity check-formula-mult)
+(hash-set! bsl-checker-hash node/formula/quantified check-formula-quantified)
 (hash-set! bsl-checker-hash 'empty-join err-empty-join)
 (hash-set! bsl-checker-hash node/formula/op-on-exprs/in check-node-formula-op-in)
 (hash-set! bsl-checker-hash node/formula/op-on-exprs/= check-node-formula-op-=)

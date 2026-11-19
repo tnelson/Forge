@@ -173,7 +173,7 @@
      '()]
     [(? node/expr/op?)
      (interpret-expr-op expr quantvars (node/expr/op-children expr) matcher order collected stop context get-new-context)]
-    [(node/expr/quantifier-var info arity sym name)  
+    [(node/expr/quantifier-var info arity sym name mult)  
      '()]
     [(node/expr/comprehension info len decls inner-form)
      (process-quant-shaped-node expr decls inner-form quantvars matcher order collected stop context get-new-context)]))

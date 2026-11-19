@@ -203,29 +203,29 @@
   ; Declaration of variables with shared expr, shared optional multiplicity
   ; The enclosing context is responsible for checking for valid multiplicities   
   (define-syntax-class DeclClass
-    ; Catch and throw an error on Alloy-style higher-order quantification for now)
+    ; Support higher-order quantification
     (pattern ((~datum QuantDecl) names-c:NameListClass "set" expr:ExprClass)
-      #:do [(raise-forge-error
-             #:msg "Quantifying over sets (`set` in a quantifier declaration) is not supported. Quantify over individual atoms instead."
-             #:context this-syntax)]
-      #:attr translate #'()
-      #:attr names #'())
-    (pattern ((~or (~datum ParaDecl) (~datum QuantDecl))
-              names-c:NameListClass              
+      #:attr translate (syntax/loc this-syntax ((names-c.names expr 'set) ...))
+      #:attr names (syntax/loc this-syntax (names-c.names ...)))
+    (pattern ((~and kind (~or (~datum ParaDecl) (~datum QuantDecl)))
+              names-c:NameListClass
               (~optional mult:HelperMultClass #:defaults ([mult #'#f]))
               expr:ExprClass)
       ; Assign Alloy-convention defaults: set if arity >1, one otherwise
-      ; Invoke intexpr->expr/maybe on numeric expressions, in case the Decl ranges over literal integers.       
+      ; Invoke intexpr->expr/maybe on numeric expressions, in case the Decl ranges over literal integers.
       #:attr translate (with-syntax ([expr #'(let ([d expr])
                                                (if (or (node/int? d) (integer? d))
                                                    (intexpr->expr/maybe d #:op 'quantifier #:info #f)
                                                    d))]
-                                     [mult (if (syntax->datum #'mult)
-                                               ; Don't quote this; will be (ArrowDeclMult ...)
-                                               #'mult
-                                               #'(if (> (node/expr-arity expr) 1)
-                                                     'set
-                                                     'one))]) 
+                                     [mult (cond [(syntax->datum #'mult)
+                                                  ; Don't quote this; will be (ArrowDeclMult ...)
+                                                  #'mult]
+                                                 ; Default is "one".
+                                                 [(equal? (syntax->datum #'kind) 'QuantDecl) #''one]
+                                                 [else
+                                                  #'(if (> (node/expr-arity expr) 1)
+                                                        'set
+                                                        'one)])])
                          (syntax/loc this-syntax ((names-c.names expr mult) ...)))
       #:attr names (syntax/loc this-syntax (names-c.names ...))))
   
@@ -1368,11 +1368,11 @@
 
   ; Quantifier
   [((~datum NT-Expr) q:QuantClass decls:DeclListClass bob:BlockOrBarClass)                       
-   (syntax/loc stx (q.symbol decls.translate bob.exprs))] ; stx, not #'q
+   (syntax/loc stx (q.symbol (#:lang (get-check-lang)) decls.translate bob.exprs))] ; stx, not #'q
 
   ; Quantifier with disj
   [((~datum NT-Expr) q:QuantClass "disj" decls:DeclListClass bob:BlockOrBarClass)
-   (syntax/loc stx (q.symbol #:disj decls.translate bob.exprs))] ; stx, not #'q
+   (syntax/loc stx (q.symbol (#:lang (get-check-lang)) #:disj decls.translate bob.exprs))] ; stx, not #'q
 
   [((~datum NT-Expr) expr1:ExprClass (~or "or" "||") expr2:ExprClass)
    (with-syntax ([expr1 (my-expand #'expr1)]
@@ -1617,7 +1617,8 @@
         [(node/expr/quantifier-var? astnode)
          (node/expr/quantifier-var
           new-info
-          (node/expr-arity astnode) (node/expr/quantifier-var-sym astnode) (node/expr/quantifier-var-name astnode))]
+          (node/expr-arity astnode) (node/expr/quantifier-var-sym astnode) (node/expr/quantifier-var-name astnode)
+          (node/expr/quantifier-var-mult astnode))]
         ; Annoyingly, structs aren't polymorphic in the way we need. This is not elegant, but:
 
         ; join, transpose, +, -, &, ^, *, ->, sing, ', ++

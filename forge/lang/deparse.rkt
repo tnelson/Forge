@@ -298,7 +298,7 @@
      (format "~a " type)]
     [(? node/expr/op?)
      (deparse-expr-op expr parent-priority)]
-    [(node/expr/quantifier-var info arity sym name)     
+    [(node/expr/quantifier-var info arity sym name mult)     
      (format "~a" name)]
     [(node/expr/comprehension info len decls form) 
      (format "{~a | ~a}"

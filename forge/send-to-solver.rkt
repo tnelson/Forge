@@ -18,7 +18,8 @@
 (require forge/breaks)
 (require forge/lang/bounds)
 (require forge/shared
-         forge/last-checker)
+         forge/last-checker
+         forge/utils/higher-order-check)
 (require (prefix-in @ (only-in racket/base max + -))
          (only-in racket match first rest empty empty? set->list list->set set-intersect set-union
                          curry range index-of pretty-print filter-map string-prefix? string-split thunk*
@@ -346,7 +347,12 @@
   (for-each (lambda ([c : node/formula])
               (checkFormula run-spec c '() (get-checker-hash)))
             run-constraints)
-  
+  ; Finally, ensure that higher-order quantifiers can be Skolemized.
+  (let ([skolem-depth (get-option run-spec 'skolem_depth)])
+    (check-higher-order-quantifiers run-constraints
+                                    (if (exact-integer? skolem-depth) skolem-depth 0)
+                                    (if (symbol? backend) backend 'unknown)))
+
   ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
   ;; Beginning to send to solver. All type-checking must be complete _before_ this point.
   ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

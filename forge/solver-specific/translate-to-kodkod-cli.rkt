@@ -48,7 +48,7 @@
        (for/fold ([quantvars quantvars])
                  ([decl decls])
          (define new-quantvars (cons (car decl) quantvars))
-         (print-cmd-cont (format "[~a : ~a " (v (get-sym (car decl))) (if (@> (node/expr-arity (car decl)) 1) "set" "one")))
+         (print-cmd-cont (format "[~a : ~a " (v (get-sym (car decl))) (node/expr/quantifier-var-mult (car decl))))
          (interpret-expr run-or-state (cdr decl) relations atom-names new-quantvars)
          (print-cmd-cont "] ")
          new-quantvars))
@@ -191,7 +191,7 @@
         (print-cmd-cont (format "~a " type))])]
     [(? node/expr/op? op)
      (interpret-expr-op run-or-state expr relations atom-names quantvars (node/expr/op-children op))]
-    [(node/expr/quantifier-var info arity sym name)     
+    [(node/expr/quantifier-var info arity sym name mult)     
      (print-cmd-cont (symbol->string (v (get-sym expr))))
      (print-cmd-cont " ")]
     [(node/expr/comprehension info len decls form)     
