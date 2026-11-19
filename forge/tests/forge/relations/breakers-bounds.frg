@@ -18,6 +18,8 @@ sig Desk { d: set N -> N }
 sig S { nxt: lone S }
 inst inBound { S in `S0 + `S1 + `S2  nxt is linear }
 
+sig T { tnxt: lone T, f: lone T }
+
 test expect {
   -- the `set` field's default breaker must respect piecewise `in` bounds
   setFieldKeepsPiecewise: { all n: N | n->n in r } for pwIn is unsat
@@ -29,4 +31,8 @@ test expect {
   -- Consistency between `is linear` that can and can't be implemented as a partial instance.
   linearExactOnFallback: { #S < 3 } for inBound is unsat
   linearScope0: { no S } for 0 S for { nxt is linear } is sat
+  -- A command that fails after adding `is linear` to the breaker state must not 
+  -- contaminate the next command.
+  failsInBounds: { } for 4 T for { tnxt is linear  `T0.f = `T1  f = `T1 -> `T2 } is forge_error
+  unaffected: { #T < 4 } for 4 T is sat
 }

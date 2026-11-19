@@ -613,6 +613,9 @@
         #:command syntax?)
        Run?)  
   
+  ; Avoid breaker state being leaked between consecutive runs when one fails 
+  ; before send-to-solver is called. 
+  (clear-breaker-state)
   ; For sigs without a scope. If #f, just use DEFAULT-SIG-SCOPE. Otherwise, supports `for N`. 
   (define default-range (and default-scope-input (Range 0 default-scope-input)))
 
