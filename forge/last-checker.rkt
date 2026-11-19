@@ -160,7 +160,7 @@
                            ; CHECK: recur into subformula (with extended variable environment)
                            (checkFormula run-or-state subform new-quantvars checker-hash))))]
     [(node/formula/sealed info)
-     (checkFormula run-or-state info quantvars)]
+     (checkFormula run-or-state info quantvars checker-hash)]
     [else (error (format "no matching case in checkFormula for ~a" (deparse formula)))]))
 
 ; This should probably be called "decl->list"; it's really _de_-associfying since
