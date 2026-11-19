@@ -203,6 +203,13 @@
   ; Declaration of variables with shared expr, shared optional multiplicity
   ; The enclosing context is responsible for checking for valid multiplicities   
   (define-syntax-class DeclClass
+    ; Catch and throw an error on Alloy-style higher-order quantification for now)
+    (pattern ((~datum QuantDecl) names-c:NameListClass "set" expr:ExprClass)
+      #:do [(raise-forge-error
+             #:msg "Quantifying over sets (`set` in a quantifier declaration) is not supported. Quantify over individual atoms instead."
+             #:context this-syntax)]
+      #:attr translate #'()
+      #:attr names #'())
     (pattern ((~or (~datum ParaDecl) (~datum QuantDecl))
               names-c:NameListClass              
               (~optional mult:HelperMultClass #:defaults ([mult #'#f]))
