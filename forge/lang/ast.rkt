@@ -62,7 +62,6 @@
   [(define (write-proc self port mode)
      (match-define (nodeinfo loc lang annotations) self)
      ; hide nodeinfo when printing; don't print anything or this will become overwhelming
-     ;(fprintf port "")
      (void))])
 
 ; The default, empty nodeinfo struct
@@ -99,7 +98,6 @@
 ; Base node struct, should be ancestor of all AST node types
 ; Should never be directly instantiated
 (struct node (info) #:transparent
-  ;#:guard (lambda (info name) (printf "creating a node; ~a; ~a~n" (nodeinfo? info) name))
   )
 
 ; Should never be directly instantiated
@@ -129,7 +127,6 @@
 ; We don't want a contract here, because we wish to control the error message given
 ; if somehow the user has provided something ill-typed that wasn't caught elsewhere.
 (define (intexpr->expr/maybe a-node #:op functionname #:info info)
-  ;(@-> (or/c node? integer?) #:op symbol? #:info nodeinfo? node/expr?)  
   (cond [(node/int? a-node) (node/expr/op-on-ints/sing (update-annotation (node-info a-node) 'automatic-int-conversion #t) 1 (list a-node))]
         [(integer? a-node) (intexpr->expr/maybe (int a-node) #:op functionname #:info info)]
         [(node/expr? a-node) a-node]
@@ -355,7 +352,6 @@
     (printf (string-append "No checker-hash given. ast-node was: ~a~n"
                            "Ignoring language-specific checks for this node. (If this was not a formula or expression "
                            "created in the Racket/DrRacket REPL, please report this as a bug.)~n") ast-node))
-  ;(printf "checking ast-node:~a  to-handle:~a  has-key? ~a ~n" ast-node to-handle (hash-has-key? checker-hash to-handle))
   (when (and checker-hash (hash-has-key? checker-hash to-handle))
     ((hash-ref checker-hash to-handle) ast-node info)))
 
@@ -378,7 +374,6 @@
   
   (syntax-case stx ()
     [(_ id parent arity checks ... #:lift @op #:type childtype #:elim-unary? elim-unary?)
-     ;(printf "define-node-op defn case: ~a~n" stx)
      (with-syntax ([intermediate (format-id #'id "~a~a" #'parent (childtype->suffix #'childtype))]
                    [name (format-id #'id "~a~a/~a" #'parent (childtype->suffix #'childtype) #'id)]
                    [parentname (format-id #'id "~a" #'parent)]
@@ -405,9 +400,6 @@
            
            (define (functionname #:info [info empty-nodeinfo] . raw-args)
              (define ast-checker-hash (get-ast-checker-hash))
-             ;(printf "ast-checker-hash ~a~n" (get-ast-checker-hash))
-             ;(printf "name: ~a raw-args: ~a ~n" 'name raw-args)
-             ;(printf "name: ~a args: ~a loc:~a ~n" 'name raw-args (nodeinfo-loc info))
 
              ; Perform intexpr->expr and expr->intexpr coercion if needed:             
              (define args (cond [(equal? node/expr? childtype)
@@ -447,8 +439,6 @@
              (syntax-case stx2 ()
                 [(_ (#:lang check-lang) e ellip)                
                   (quasisyntax/loc stx2
-                    ;(begin
-                    ;(printf "arguments:~a ; ~a ; ~a ~n" check-lang e ellip))]
                     (macroname/info (nodeinfo #,(build-source-location stx2) check-lang #f) e ellip))]
                 [(_ e ellip)                
                   (quasisyntax/loc stx2
@@ -470,8 +460,6 @@
              (syntax-case stx2 ()                              
                [(_ info e ellip)
                 (quasisyntax/loc stx2
-                  ;(printf "all args ~a ;   ~a ;  ~a ~n" info e ellip))]))
-                  ; (printf "in created macro, arg location: ~a~n" (build-source-location stx2))
                   (begin
            
                     ; Keeping this comment in case these macros need to be maintained:
@@ -511,9 +499,6 @@
   (define-node-op id node/expr/op join-arity #:join? #t #:type node/expr?))
 (define-op/join join)
 
-; These are implemented as macros in sigs-structs.rkt, although we only support restricting binary relations for now.
-;(define-node-op <: node/expr/op get-second #:max-length 2 #:domain? #t #:type node/expr?)
-;(define-node-op :> node/expr/op get-first  #:max-length 2 #:range? #t #:type node/expr?)
 
 (define-node-op ++ node/expr/op get-first #:same-arity? #t #:min-length 2 #:max-length 2 #:type node/expr?)
 (define-node-op sing node/expr/op (const 1) #:min-length 1 #:max-length 1 #:type node/int?)
@@ -530,7 +515,9 @@
 
 ;; -- quantifier vars ----------------------------------------------------------
 
-(struct node/expr/quantifier-var node/expr (sym name) #:transparent
+; A quantifier variable has a multiplicity, which is either 'one (singleton) or 'set, 
+; for higher-order quantification. 
+(struct node/expr/quantifier-var node/expr (sym name mult) #:transparent
   #:methods gen:equal+hash
   [(define equal-proc (make-robust-node-equal-syntax node/expr/quantifier-var))
    (define hash-proc  (make-robust-node-hash-syntax node/expr/quantifier-var 0))
@@ -540,20 +527,30 @@
      (fprintf port "~a" (node/expr/quantifier-var-name self)))])
 
 ; function to create a unary quantifier-var (no macro)
-(define (var [raw-sym #f] #:info [node-info empty-nodeinfo])
+(define (var [raw-sym #f] #:info [node-info empty-nodeinfo] #:mult [mult 'one] #:arity [arity 1])
   (define sym (@or raw-sym (gensym 'var)))
   (node/expr/quantifier-var node-info
-                            1 
-                            sym sym))
+                            arity
+                            sym sym mult))
 
 ; Helper macro to create a quantified variable with proper syntax location
 (define-syntax (qvar stx)
   (syntax-parse stx
     [(_ v e quant)
+     (syntax/loc stx (qvar v e quant 'one))]
+    [(_ v e quant m)
      (quasisyntax/loc stx
        (node/expr/quantifier-var (nodeinfo #,(build-source-location #'v) 'checklangNoCheck #f)
                                  (if (node/expr? e) (node/expr-arity e) 1)
-                                 (gensym (format "~a_~a" 'v 'quant)) 'v))]))
+                                 (gensym (format "~a_~a" 'v 'quant)) 'v m))]))
+
+; At time of writing, Skolemization is only meaningful on certain quantifier types.
+(define (reject-set-mult-decls decls)
+  (for ([decl (in-list decls)])
+    (when (equal? 'set (node/expr/quantifier-var-mult (car decl)))
+      (raise-forge-error
+       #:msg (format "`set` in a declaration is only supported for `some`, `all`, and `no` quantifiers: ~a" (car decl))
+       #:context (car decl)))))
 
 
 ;; -- comprehensions -----------------------------------------------------------
@@ -583,6 +580,8 @@
     (raise-forge-error
      #:msg (format "Set-comprehension cannot use the same variable name more than once; used: ~a." vars)
      #:context info))
+  ; `one`/`lone` desugar to comprehensions, so we need to check for higher-order 
+  (reject-set-mult-decls decls)
 
   (for ([e (map cdr decls)])
     (unless (node/expr? e)
@@ -602,8 +601,10 @@
 (begin-for-syntax
   (define-splicing-syntax-class opt-check-lang-class
     (pattern (~optional ((~datum #:lang) check-lang) #:defaults ([check-lang #''checklangNoCheck]))))
+  ; Quantifiers default to singleton domains (don't confuse the "one" here, which would 
+  ; appear in, e.g., `some x: one A` Alloy-style, with the "one" quantifier.)
   (define-splicing-syntax-class opt-mult-class
-    (pattern (~optional mult #:defaults ([mult #'(if (> (node/expr-arity e0) 1) 'set 'one)])))))
+    (pattern (~optional mult #:defaults ([mult #''one])))))
 
 ; Macro for forge/core set comprehensions
 (define-syntax (set stx)
@@ -612,7 +613,8 @@
                    ([r0 e0 m0:opt-mult-class] ...)
                    pred)
         (quasisyntax/loc stx
-          (let* ([r0 (qvar r0 e0 "set")] ... )
+          (let* ([r0 (qvar r0 e0 "set" m0.mult)] ... )
+            (reject-set-mult-decls (list (cons r0 e0) ...))
             ; We need to check these only inside the let*, to allow for later decls to use earlier ones.
             (unless (node/expr? e0)
               (raise-set-comp-quantifier-error e0))
@@ -635,7 +637,6 @@
   [(define (write-proc self port mode)
      (match-define (node/expr/relation info arity name typelist-thunk parent is-variable) self)
      (fprintf port "(relation ~a ~v ~a ~a)" arity name (typelist-thunk) parent))]
-     ;(fprintf port "(rel ~a)" name))]
   #:methods gen:equal+hash
   [(define equal-proc (make-robust-node-equal-syntax node/expr/relation))
    (define hash-proc  (make-robust-node-hash-syntax node/expr/relation 0))
@@ -805,6 +806,7 @@
     (raise-forge-error
      #:msg (format "sum aggregator only supports a single variable; if you wish to sum over multiple domains, please use nested sum aggregators.")
      #:context node-info))
+  (reject-set-mult-decls decls)
   (for ([e (map cdr decls)])
     (unless (node/expr? e)
       (raise-forge-error
@@ -953,19 +955,26 @@
      #:msg (format "~a quantified-formula must be desugared first to some, all, or no." quantifier)
      #:context info))
   
-  (for ([e (in-list (map cdr decls))])
+  (for ([decl (in-list decls)])
+    (define v (car decl))
+    (define e (cdr decl))
     (unless (node/expr? e)
       (raise-forge-error #:msg (format "~a quantifier expected an expression for domain, got ~a" quantifier e)
                          #:context (if (node? e) e info)))
-    (unless (equal? (node/expr-arity e) 1)
-      (raise-forge-error #:msg (format "~a quantifier expected an arity-1 expression for domain, got ~a" quantifier e)
-                         #:context (if (node? e) e info))))
+    ; A variable declared with `set` multiplicity is allowed any arity, not just arity=1. 
+    (unless (or (equal? (node/expr-arity e) 1)
+                (equal? 'set (node/expr/quantifier-var-mult v)))
+      (raise-forge-error #:msg (format "~a quantifier expected an arity-1 expression for domain, got ~a" quantifier (deparse e))
+                         #:context (if (node? e) e info)))
+    (unless (equal? (node/expr-arity v) (node/expr-arity e))
+      (raise-forge-error #:msg (format "~a quantifier variable ~a has arity ~a, but its domain ~a has arity ~a"
+                                       quantifier v (node/expr-arity v) (deparse e) (node/expr-arity e))
+                         #:context (if (srcloc-source (nodeinfo-loc (node-info v))) v info))))
   (unless (or (node/formula? formula) (equal? #t formula))
     (raise-forge-error #:msg (format "~a quantifier body expected a formula, got ~a" quantifier formula)
                        #:context (if (node? formula) formula info)))
   (node/formula/quantified info quantifier decls formula))
 
-;(struct node/formula/higher-quantified node/formula (quantifier decls formula))
 
 ;; -- multiplicities -----------------------------------------------------------
 
@@ -1008,7 +1017,7 @@
 (define-syntax (all stx)
   (syntax-parse stx
     [(_ check-lang:opt-check-lang-class (~optional (~and #:disj disj)) ([v0 e0 m0:opt-mult-class] ...) pred)     
-      (quasisyntax/loc stx (all/info (nodeinfo #,(build-source-location stx) check-lang.check-lang #f) (~? disj) ([v0 e0 m0] ...) pred))]))
+      (quasisyntax/loc stx (all/info (nodeinfo #,(build-source-location stx) check-lang.check-lang #f) (~? disj) ([v0 e0 m0.mult] ...) pred))]))
 
 (define-syntax (all/info stx)
   (syntax-parse stx
@@ -1016,12 +1025,12 @@
     ; TODO: currently discarding the multiplicity info, unchecked
     [(_ info #:disj ([v0 e0 m0:opt-mult-class] ...) pred)
      (quasisyntax/loc stx
-       (all/info info ([v0 e0 m0] ...)
+       (all/info info ([v0 e0 m0.mult] ...)
                  #,(quasisyntax/loc stx
                      (=> (no-pairwise-intersect (list v0 ...) #:context #,(build-source-location stx)) pred))))]
     [(_ info ([v0 e0 m0:opt-mult-class] ...) pred)
      (quasisyntax/loc stx
-       (let* ([v0 (qvar v0 e0 "all")] ...)
+       (let* ([v0 (qvar v0 e0 "all" m0.mult)] ...)
          (quantified-formula info 'all (list (cons v0 e0) ...) pred)))]))
 
 ;;; SOME ;;;
@@ -1035,7 +1044,7 @@
 (define-syntax (some stx)
   (syntax-parse stx
     [(_ check-lang:opt-check-lang-class (~optional (~and #:disj disj)) ([v0 e0 m0:opt-mult-class] ...) pred) 
-      (quasisyntax/loc stx (some/info (nodeinfo #,(build-source-location stx) check-lang.check-lang #f) (~? disj) ([v0 e0 m0] ...) pred))]
+      (quasisyntax/loc stx (some/info (nodeinfo #,(build-source-location stx) check-lang.check-lang #f) (~? disj) ([v0 e0 m0.mult] ...) pred))]
     [(_ check-lang:opt-check-lang-class expr)
       (quasisyntax/loc stx (some/info (nodeinfo #,(build-source-location stx) check-lang.check-lang #f) expr))]))
 
@@ -1047,12 +1056,12 @@
     ; TODO: currently discarding the multiplicity info, unchecked (in this and the following cases)
     [(_ info ([v0 e0 m0:opt-mult-class] ...) pred)
      (quasisyntax/loc stx
-       (let* ([v0 (qvar v0 e0 "some")] ...)
+       (let* ([v0 (qvar v0 e0 "some" m0.mult)] ...)
          (quantified-formula info 'some (list (cons v0 e0) ...) pred)))]
     ; quantifier case with disjointness flag; embed and repeat
     [(_ info #:disj ([v0 e0 m0:opt-mult-class] ...) pred)
      (quasisyntax/loc stx
-       (some/info info ([v0 e0 m0] ...)
+       (some/info info ([v0 e0 m0.mult] ...)
                   #,(quasisyntax/loc stx
                       (&& (no-pairwise-intersect (list v0 ...)
                                                  #:context #,(build-source-location stx)) pred))))]
@@ -1073,7 +1082,7 @@
   (syntax-parse stx
     ; quantifier
     [(_ (~optional (#:lang check-lang) #:defaults ([check-lang #''checklangNoCheck])) (~optional (~and #:disj disj)) ([v0 e0 m0:opt-mult-class] ...) pred) 
-      (quasisyntax/loc stx (no/info (nodeinfo #,(build-source-location stx) check-lang #f) (~? disj) ([v0 e0 m0] ...) pred))]
+      (quasisyntax/loc stx (no/info (nodeinfo #,(build-source-location stx) check-lang #f) (~? disj) ([v0 e0 m0.mult] ...) pred))]
     ; multiplicity
     [(_ (~optional (#:lang check-lang) #:defaults ([check-lang #''checklangNoCheck])) expr)
       (quasisyntax/loc stx (no/info (nodeinfo #,(build-source-location stx) check-lang #f) expr))]))
@@ -1082,11 +1091,11 @@
   (syntax-parse stx
     ; quantifier with disj: rewrite as !some
     [(_ info #:disj ([v0 e0 m0:opt-mult-class] ...) pred)
-     #'(! (some/info info #:disj ([v0 e0 m0] ...) pred))]
+     #'(! (some/info info #:disj ([v0 e0 m0.mult] ...) pred))]
     ; quantifier without disj: rewrite as !some
     [(_ info ([v0 e0 m0:opt-mult-class] ...) pred)
      (quasisyntax/loc stx
-       (let* ([v0 (qvar v0 e0 "no")] ...)
+       (let* ([v0 (qvar v0 e0 "no" m0.mult)] ...)
          (! (quantified-formula info 'some (list (cons v0 e0) ...) pred))))]
     [(_ info expr)
      (quasisyntax/loc stx
@@ -1104,7 +1113,7 @@
   (syntax-parse stx
     ; quantifier
     [(_ (~optional (#:lang check-lang) #:defaults ([check-lang #''checklangNoCheck])) (~optional (~and #:disj disj)) ([v0 e0 m0:opt-mult-class] ...) pred) 
-      (quasisyntax/loc stx (one/info (nodeinfo #,(build-source-location stx) check-lang #f) (~? disj) ([v0 e0 m0] ...) pred))]
+      (quasisyntax/loc stx (one/info (nodeinfo #,(build-source-location stx) check-lang #f) (~? disj) ([v0 e0 m0.mult] ...) pred))]
     ; multiplicity
     [(_ (~optional (#:lang check-lang) #:defaults ([check-lang #''checklangNoCheck])) expr)
       (quasisyntax/loc stx (one/info (nodeinfo #,(build-source-location stx) check-lang #f) expr))]))
@@ -1116,14 +1125,14 @@
        ; Kodkod doesn't have a "one" quantifier natively.
        ; Instead, desugar as a multiplicity of a set comprehension
        (multiplicity-formula info 'one
-                             (set ([x1 r1] ...)
+                             (set ([x1 r1 m0.mult] ...)
                                   #,(quasisyntax/loc stx (&& (no-pairwise-intersect (list x1 ...)
                                                                                     #:context #,(build-source-location stx)) pred)))))]
     [(_ info ([x1 r1 m0:opt-mult-class] ...) pred)
      (quasisyntax/loc stx
        ; Kodkod doesn't have a "one" quantifier natively.
        ; Instead, desugar as a multiplicity of a set comprehension
-       (multiplicity-formula info 'one (set ([x1 r1] ...) pred)))]
+       (multiplicity-formula info 'one (set ([x1 r1 m0.mult] ...) pred)))]
     ; multiplicity case
     [(_ info expr)
      (quasisyntax/loc stx
@@ -1140,7 +1149,7 @@
 (define-syntax (lone stx)
   (syntax-parse stx    
     [(_ (~optional (#:lang check-lang) #:defaults ([check-lang #''checklangNoCheck])) (~optional (~and #:disj disj)) ([v0 e0 m0:opt-mult-class] ...) pred) 
-      (quasisyntax/loc stx (lone/info (nodeinfo #,(build-source-location stx) check-lang #f) (~? disj) ([v0 e0 m0] ...) pred))]
+      (quasisyntax/loc stx (lone/info (nodeinfo #,(build-source-location stx) check-lang #f) (~? disj) ([v0 e0 m0.mult] ...) pred))]
     [(_ (~optional (#:lang check-lang) #:defaults ([check-lang #''checklangNoCheck])) expr)
       (quasisyntax/loc stx (lone/info (nodeinfo #,(build-source-location stx) check-lang #f) expr))]))
 
@@ -1150,7 +1159,7 @@
      (quasisyntax/loc stx
        ; Kodkod doesn't have a lone quantifier natively.
        ; Instead, desugar as a multiplicity of a set comprehension
-       (multiplicity-formula info 'lone (set ([x1 r1] ...)
+       (multiplicity-formula info 'lone (set ([x1 r1 m0.mult] ...)
                                              #,(quasisyntax/loc stx
                                                  (&& (no-pairwise-intersect (list x1 ...)
                                                                             #:context #,(build-source-location stx)) pred)))))]
@@ -1158,7 +1167,7 @@
      (quasisyntax/loc stx
        ; Kodkod doesn't have a lone quantifier natively.
        ; Instead, desugar as a multiplicity of a set comprehension
-       (multiplicity-formula info 'lone (set ([x1 r1] ...) pred)))]
+       (multiplicity-formula info 'lone (set ([x1 r1 m0.mult] ...) pred)))]
     ; multiplicity case
     [(_ info expr)
      (quasisyntax/loc stx
@@ -1171,7 +1180,7 @@
   (syntax-parse stx
     [(_ (~optional (#:lang check-lang) #:defaults ([check-lang #''checklangNoCheck])) ([x1 r1 m0:opt-mult-class] ...) int-expr)
      (quasisyntax/loc stx
-       (let* ([x1 (qvar x1 r1 "sum")] ...)
+       (let* ([x1 (qvar x1 r1 "sum" m0.mult)] ...)
          (sum-quant-expr (nodeinfo #,(build-source-location stx) check-lang #f) (list (cons x1 r1) ...) int-expr)))]))
 
 
@@ -1230,10 +1239,8 @@
      (begin
        ; don't want to call struct-accessors every time this lambda is invoked,
        ; so call once at expansion time of make-robust...
-       ;(printf "structname: ~a~n" (syntax->datum #'structname))       
        #`(lambda (a b equal-proc)           
            (andmap (lambda (access)           
-                     ;(printf "checking equality for ~a, proc ~a~n" structname access)
                      (define vala (access a))
                      (define valb (access b))
                      ; Some AST fields may be thunkified
@@ -1267,27 +1274,22 @@
           ; zero-arity procedure (a "thunk"): invoke it and then hash the result
           [(and (procedure? vala)                
                 (equal? (procedure-arity vala) 0))
-           ;(printf "field was zero arity procedure: ~a~n" vala)
            (@* multiplier (hash-proc (vala)))]
 
           ; node/expr? (but not a zero-arity procedure): just hash it
           [(node/expr? vala)
-           ;(printf "field was expr: ~a~n" vala)
            (@* multiplier (hash-proc vala))]
 
           ; node/formula? (but not a zero-arity procedure): just hash it
           [(node/formula? vala)
-           ;(printf "field was formula: ~a~n" vala)
            (@* multiplier (hash-proc vala))]
 
           ; not a procedure at all: just hash it
           [(not (procedure? vala))
-           ;(printf "field was other non-procedure: ~a~n" vala)
            (@* multiplier (hash-proc vala))]
 
           [else (raise (format "Non-thunk procedure field when hashing for ~a. Got: ~a"
                               structname vala))])))
-    ;(printf "in mrnhs for ~a/~a: ~a, multiplied: ~a~n" structname offset a multiplied)    
     (apply @+ multiplied)))
 
 
@@ -1303,23 +1305,10 @@
       #'(define-syntax id (lambda (stx) (syntax-case stx ()    
           [val (identifier? (syntax val)) (quasisyntax/loc stx (node/breaking/break (nodeinfo #,(build-source-location stx) 'checklangplaceholder #f) sym))])))]))
 
-(make-breaker cotree 'cotree)
-(make-breaker cofunc 'cofunc)
-(make-breaker cosurj 'cosurj)
-(make-breaker coinj 'coinj)
-
-(make-breaker ireff 'ireff)
-(make-breaker ref 'ref)
 (make-breaker linear 'linear)
 (make-breaker plinear 'plinear)
-(make-breaker acyclic 'acyclic)
-(make-breaker tree 'tree)
 (make-breaker func 'func)
 (make-breaker pfunc 'pfunc)
-(make-breaker surj 'surj)
-(make-breaker inj 'inj)
-(make-breaker bij 'bij)
-(make-breaker pbij 'pbij)
 
 (make-breaker default 'default)
 
@@ -1344,17 +1333,19 @@
           [(srcloc? context) context]
           [(syntax? context) (build-source-location context)]  
           [else #f]))
-  (if loc
-      (format "~a:~a:~a (span ~a)" (srcloc-source loc) (srcloc-line loc) (srcloc-column loc) (srcloc-span loc))
-      "unknown:?:?"))
+  (cond [loc (format "~a:~a:~a (span ~a)" (srcloc-source loc) (srcloc-line loc) (srcloc-column loc) (srcloc-span loc))]
+        [(string? context) context] 
+        [else "unknown:?:?"]))
 
 (define (raise-forge-error #:msg [msg "error"] #:context [context #f] #:raise? [raise? #t])
   (if raise?
       (raise-user-error (format "[~a] ~a" (pretty-loc context) msg))
       (fprintf (current-error-port) "[~a] ~a" (pretty-loc context) msg)))
 
+; Unlike an error, warnings are silenced if verbosity is 0. 
 (define (raise-forge-warning #:msg [msg "warning"] #:context [context #f])
-  (fprintf (current-error-port) "Warning: [~a] ~a~n" (pretty-loc context) msg))
+  (when (>= (get-verbosity) VERBOSITY_LOW)
+    (fprintf (current-error-port) "Warning: [~a] ~a~n" (pretty-loc context) msg)))
 
 ; Helper for other locations we might need to generate a nodeinfo struct from a variety
 ; of datatype possibilities.

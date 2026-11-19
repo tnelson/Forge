@@ -1,7 +1,6 @@
 #lang typed/racket/base/optional
 
 (provide ; (struct-out computation)
-         ; (struct-out computation/delayed)
          (prefix-out tree: (struct-out node))
          (prefix-out tree: make-node/func)
          tree:get-value
@@ -9,8 +8,6 @@
          get-checker-hash)
 
 (require/typed forge/utils/lazy-tree
-  ; [#:struct computation ()]
-  ; [#:struct (computation/delayed computation) ([thnk : Any])]
   [make-node/func (-> (-> String Any) String (-> String Any) node)]
   [(get-value tree:get-value) (-> node Any)]
   [(get-child tree:get-child) (-> node Any Any)]

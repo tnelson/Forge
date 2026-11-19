@@ -34,7 +34,7 @@
          (prefix-in @ (only-in racket +)))
 (require forge/sigs)
 (require forge/choose-lang-specific)
-(require (only-in forge/lang/ast raise-forge-error))
+(require (only-in forge/lang/ast raise-forge-error raise-forge-warning))
 
 (provide #%module-begin)
 (provide #%top #%app #%datum #%top-interaction)
@@ -88,15 +88,6 @@
   result)
 
 (begin-for-syntax
-  ; AlloyModule : ModuleDecl? Import* Paragraph*
-  ;             | EvalDecl*
-  ; (define-syntax-class AlloyModuleClass
-  ;   (pattern ((~datum AlloyModule)
-  ;             (~optional module-decl:ModuleDeclClass)
-  ;             (~seq import:ImportClass ...)
-  ;             (~seq paragraph:ParagraphClass ...)))
-  ;   (pattern ((~datum AlloyModule)
-  ;             (~seq eval-decl:EvalDeclClass ...))))
 
 
   ; Header stuff
@@ -144,16 +135,10 @@
     (pattern decl:ConsistencyDeclClass)
     (pattern decl:TestSuiteDeclClass)
     (pattern decl:SexprDeclClass)
-    ; (pattern decl:BreakDeclClass)
-    ; (pattern decl:InstanceDeclClass)
-    ; (pattern decl:QueryDeclClass)
-    ; (pattern decl:StateDeclClass)
-    ; (pattern decl:TransitionDeclClass)
     (pattern decl:RelDeclClass)
     (pattern decl:OptionDeclClass)
     (pattern decl:InstDeclClass)
     (pattern decl:ExampleDeclClass))
-    ; (pattern decl:TraceDeclClass))
 
   ;Used for Electrum stuff
   ;Used to declare var Sigs and Relations (so they can change over time)
@@ -218,22 +203,29 @@
   ; Declaration of variables with shared expr, shared optional multiplicity
   ; The enclosing context is responsible for checking for valid multiplicities   
   (define-syntax-class DeclClass
-    (pattern ((~or (~datum ParaDecl) (~datum QuantDecl))
-              names-c:NameListClass              
+    ; Support higher-order quantification
+    (pattern ((~datum QuantDecl) names-c:NameListClass "set" expr:ExprClass)
+      #:attr translate (syntax/loc this-syntax ((names-c.names expr 'set) ...))
+      #:attr names (syntax/loc this-syntax (names-c.names ...)))
+    (pattern ((~and kind (~or (~datum ParaDecl) (~datum QuantDecl)))
+              names-c:NameListClass
               (~optional mult:HelperMultClass #:defaults ([mult #'#f]))
               expr:ExprClass)
       ; Assign Alloy-convention defaults: set if arity >1, one otherwise
-      ; Invoke intexpr->expr/maybe on numeric expressions, in case the Decl ranges over literal integers.       
+      ; Invoke intexpr->expr/maybe on numeric expressions, in case the Decl ranges over literal integers.
       #:attr translate (with-syntax ([expr #'(let ([d expr])
                                                (if (or (node/int? d) (integer? d))
                                                    (intexpr->expr/maybe d #:op 'quantifier #:info #f)
                                                    d))]
-                                     [mult (if (syntax->datum #'mult)
-                                               ; Don't quote this; will be (ArrowDeclMult ...)
-                                               #'mult
-                                               #'(if (> (node/expr-arity expr) 1)
-                                                     'set
-                                                     'one))]) 
+                                     [mult (cond [(syntax->datum #'mult)
+                                                  ; Don't quote this; will be (ArrowDeclMult ...)
+                                                  #'mult]
+                                                 ; Default is "one".
+                                                 [(equal? (syntax->datum #'kind) 'QuantDecl) #''one]
+                                                 [else
+                                                  #'(if (> (node/expr-arity expr) 1)
+                                                        'set
+                                                        'one)])])
                          (syntax/loc this-syntax ((names-c.names expr mult) ...)))
       #:attr names (syntax/loc this-syntax (names-c.names ...))))
   
@@ -252,10 +244,8 @@
   ; ArrowDecl : DISJ-TOK? NameList /COLON-TOK DISJ-TOK? ArrowMult ArrowExpr
   (define-syntax-class ArrowDeclClass
     (pattern ((~datum ArrowDecl)
-              ;(~optional "disj")
               (~optional isv:VarKeywordClass #:defaults ([isv #'#f])) ; electrum
               name-list:NameListClass
-              ;(~optional "disj") 
               mult-class:ArrowMultClass
               type-list:ArrowExprClass)
       #:attr names #'(name-list.names ...)
@@ -384,7 +374,7 @@
     (pattern decl:ConsistencyDeclClass))
 
   (define-syntax-class PropertyDeclClass
-    #:attributes (tname prop pred-name constraint-type scope bounds)
+    #:attributes (tname prop pred-name constraint-type scope default-scope bounds)
     (pattern (
               (~datum NT-PropertyDecl)      
               (~optional -tname:NameClass)
@@ -398,10 +388,11 @@
       #:with pred-name #'-pred-name.name
       #:with constraint-type (string->symbol (syntax-e #'ct))
       #:with scope (if (attribute -scope) #'-scope.translate #'())
+      #:attr default-scope (and (attribute -scope) (attribute -scope.default-scope))
       #:with bounds (if (attribute -bounds) #'-bounds.translate #'())))
 
   (define-syntax-class QuantifiedPropertyDeclClass
-    #:attributes (tname quant-decls disj prop pred-name pred-exprs constraint-type scope bounds)
+    #:attributes (tname quant-decls disj prop pred-name pred-exprs constraint-type scope default-scope bounds)
     (pattern ((~datum NT-QuantifiedPropertyDecl)
               (~optional -tname:NameClass)
               (~optional (~and "disj" -disj))
@@ -420,10 +411,11 @@
       #:with pred-exprs  (if (attribute -pred-exprs) #'(-pred-exprs.exprs ...) #'()) 
       #:with constraint-type (string->symbol (syntax-e #'ct))
       #:with scope (if (attribute -scope) #'-scope.translate #'())
+      #:attr default-scope (and (attribute -scope) (attribute -scope.default-scope))
       #:with bounds (if (attribute -bounds) #'-bounds.translate #'())))
 
 (define-syntax-class SatisfiabilityDeclClass
-  #:attributes (tname prop expected scope bounds)
+  #:attributes (tname prop expected scope default-scope bounds)
   (pattern ((~datum NT-SatisfiabilityDecl)
             (~optional -tname:NameClass)
             -prop:ExprClass
@@ -434,11 +426,12 @@
     #:with prop #'-prop
     #:with expected (string->symbol (syntax-e #'ct))
     #:with scope (if (attribute -scope) #'-scope.translate #'())
+    #:attr default-scope (and (attribute -scope) (attribute -scope.default-scope))
     #:with bounds (if (attribute -bounds) #'-bounds.translate #'())))
 
 
 (define-syntax-class ConsistencyDeclClass
-  #:attributes (tname test-expr pred-name consistency expected scope bounds)
+  #:attributes (tname test-expr pred-name consistency expected scope default-scope bounds)
   (pattern ((~datum NT-ConsistencyDecl) 
             (~optional -tname:NameClass)     
             -test-expr:ExprClass
@@ -452,6 +445,7 @@
     #:with consistency (string->symbol (syntax-e #'ct)) ;; This is for good test naming
     #:with expected (if (equal? (syntax-e #'ct) "consistent") 'sat 'unsat)
     #:with scope (if (attribute -scope) #'-scope.translate #'())
+    #:attr default-scope (and (attribute -scope) (attribute -scope.default-scope))
     #:with bounds (if (attribute -bounds) #'-bounds.translate #'())))
 
   (define-syntax-class TestSuiteDeclClass
@@ -475,7 +469,9 @@
     (pattern ((~datum Scope)
               (~optional default:NumberClass)
               (~seq typescope:TypescopeClass ...))
-      #:attr translate #'(typescope.translate ...)))
+      #:attr translate #'(typescope.translate ...)
+      ; The default scope will be #f when no bare `for N` is given.
+      #:attr default-scope (and (attribute default) #'default.value)))
 
   ; Typescope : EXACTLY-TOK? Number QualName
   (define-syntax-class TypescopeClass
@@ -586,16 +582,13 @@
   (define-syntax-class BoundsClass
      #:description "bounds declarations"
     (pattern ((~datum Bounds)
-              ;(~optional "exactly")
               bounds:BoundClass ...)
       #:attr translate (begin
-                         ;(printf "Bounds case 1: ~a~n" (build-source-location this-syntax))
                          (datum->syntax #'(bounds ...)
                                         ; Note: syntax->list keeps the syntax objects within, along with
                                         ; their context/srcloc. (The syntax/loc here doesn't seem to be
                                         ; needed, since it's templating.)
                                         (syntax->list #'(bounds.translate ...))
-                                        ;(syntax->list (syntax/loc this-syntax (bounds.translate ...)))
                                         (build-source-location this-syntax))))
     ; direct use in the example, test, run, etc.
     ; `example` macro splices the result in. Hence, not #'(Expr name).
@@ -741,7 +734,6 @@
           (raise-forge-error
            #:msg (format "Negative numbers must not have blank space between the minus sign and the digits (~a)." n.value)
            #:context loc)))
-      ;(quasisyntax/loc this-syntax (int #,(* -1 (syntax->datum #'n.value)))))
     ))
   
   ; ArrowOp : (@Mult | SET-TOK)? ARROW-TOK (@Mult | SET-TOK)?
@@ -854,12 +846,10 @@
   (syntax-parse stx
     [((~datum NT-AlloyModule) (~optional module-decl:ModuleDeclClass)
                               ; Imports are now handled separately
-                             ;(~seq import:ImportClass ...)
                              (~seq paragraph:ParagraphClass ...))
      (syntax/loc stx
        (begin
          (~? module-decl)
-         ;import ...
          paragraph ...))]
     [((~datum NT-AlloyModule) ((~datum NT-EvalDecl) "eval" expr:ExprClass))
      (syntax/loc stx expr)]
@@ -882,6 +872,8 @@
     ; take the importing module's location into account. 
     [((~datum NT-Import) file-path:str
                          (~optional (~seq "as" as-name:NameClass)))
+     ; If the import has an `as name`, as Alloy does, prefix identifiers with `name/`. 
+     #:attr pfx (and (attribute as-name) (format-id #'as-name.name "~a/" #'as-name.name))
      (unless (file-exists? (build-path (current-load-relative-directory) (syntax->datum #'file-path)))
        (raise-forge-error #:msg (format "File to import was not found: ~a" (syntax->datum #'file-path))
                           #:context (build-source-location stx)))
@@ -889,7 +881,7 @@
        (begin         
        ; TODO: absolute paths should work in Windows here, but relative paths 
        ; not so much.
-         (~? (require (prefix-in as-name.name file-path))
+         (~? (require (prefix-in pfx file-path))
              (require file-path))))]
 
     ; Path relative to the `library` subfolder of the Forge package
@@ -897,28 +889,12 @@
     [((~datum NT-Import) import-name:QualNameClass
                          (~optional (~seq "[" other-names:QualNameListClass "]"))
                          (~optional (~seq "as" as-name:NameClass)))
+     ; If the import has an `as name`, as Alloy does, prefix identifiers with `name/`. 
+     #:attr pfx (and (attribute as-name) (format-id #'as-name.name "~a/" #'as-name.name))
 
      (when (syntax->datum #'(~? other-names #f))
        (raise (format "Parameterized import not yet implemented. ~a" 'other-names)))
      
-    ;   (define prefixed-file-path
-    ;      (build-path (pkg-directory "forge")
-    ;                  "library"
-    ;                  (symbol->string (syntax->datum #'import-name.name))))  
-
-    ;     (printf "value: ~a~n" (symbol->string (syntax->datum #'import-name.name)))  
-    ;   (printf "Prefixed: ~a~n" prefixed-file-path)   
-    ;  (define actual-file-path
-    ;    (find-relative-path
-    ;     (current-load-relative-directory)
-    ;     (simplify-path  
-    ;      (cond [(file-exists? (path-add-extension prefixed-file-path #".rkt"))
-    ;             (path-add-extension prefixed-file-path #".rkt")]
-    ;            [(file-exists? (path-add-extension prefixed-file-path #".frg"))
-    ;             (path-add-extension prefixed-file-path #".frg")]
-    ;            [else
-    ;             (raise-forge-error #:msg (format "Forge library module to import did not exist: ~a" (syntax->datum #'import-name.name))
-    ;                                #:context stx)]))))
       
      (define actual-module-path 
        (string->symbol 
@@ -927,7 +903,7 @@
      (with-syntax ([fp (datum->syntax #'import-name actual-module-path #'import-name)])
        (quasisyntax/loc stx
            ; It is important that the module-path given here has the context of the Forge module. 
-           (~? (require (prefix-in as-name.name fp))
+           (~? (require (prefix-in pfx fp))
               (require fp))
        ))]))
 
@@ -1112,23 +1088,21 @@
                                           #'cmd-type)]
                  [name #`(~? name.name #,(make-temporary-name stx))]
                  [preds #'(~? pred.name preds)])
-     ;(printf "Trying to make target: ~a~n" #'tomf.translate_tgt)
     #`(begin
        #,(syntax/loc stx (cmd-type name (~? (~@ #:preds [preds]))
                       (~? (~@ #:scope scope.translate))
+                      (~? (~@ #:default-scope scope.default-scope))
                       (~? (~@ #:bounds bounds.translate))
                       (~? (~@ #:target tomf.translate_tgt))
                       (~? (~@ #:target-distance tomf.translate_mode))))
        ; This should no longer be called per-command. Instead, an external coordinator
        ; (such as Sterling) will say when (and if) each command should be executed.
-       ;#,(syntax/loc stx (display name))
        ))]))
 
 ; TestDecl : (Name /COLON-TOK)? Parameters? (QualName | Block)? Scope? (/FOR-TOK Bounds)? /IS-TOK (SAT-TOK | UNSAT-TOK)
 (define-syntax (NT-TestDecl stx)
   ; This stx object currently has the location of the enclosing TestBlock
   ; ... unless there is a name provided? (already, at this point, even before the parse below)
-  ;(printf "expander for TestDecl: ~a~n" stx)
   (syntax-parse stx
   [((~datum NT-TestDecl) (~optional name:NameClass)
                         (~optional parameters:ParametersClass)
@@ -1146,13 +1120,13 @@
      (syntax/loc stx
        (test name (~? (~@ #:preds [preds]))
                   (~? (~@ #:scope scope.translate))
+                  (~? (~@ #:default-scope scope.default-scope))
                   (~? (~@ #:bounds bounds.translate))
                   #:expect expected
                   (~? (~@ #:expect-details expected-details)))))]))
 
 ; TestExpectDecl : TEST-TOK? EXPECT-TOK Name? TestBlock
 (define-syntax (NT-TestExpectDecl stx)
-  ;(printf "expander for TestExpectDecl: ~a~n" stx)
   (syntax-parse stx
   [((~datum NT-TestExpectDecl) (~optional (~and "test" test-tok))
                               "expect" 
@@ -1179,13 +1153,13 @@
         test_name
         #:preds [imp_total]
         #:scope pwd.scope
+        (~? (~@ #:default-scope pwd.default-scope))
         #:bounds pwd.bounds
         #:expect checked ))]))
 
 (define-syntax (NT-QuantifiedPropertyDecl stx)
   (syntax-parse stx
     [qpd:QuantifiedPropertyDeclClass  
-    ;;;#:do [(printf "QuantifiedPropertyDeclClass.PropExprs: ~a~n" (syntax->datum #'qpd.prop-exprs))]
      (with-syntax* 
         ( [(exp-pred-exprs ...) (datum->syntax stx (cons (syntax->datum #'qpd.pred-name) (syntax->datum #'qpd.pred-exprs)) stx)]
           [pred-consolidated (if (equal? (syntax->datum #'qpd.pred-exprs) '()) 
@@ -1208,6 +1182,7 @@
           test_name
          #:preds [imp_total]
          #:scope qpd.scope
+         (~? (~@ #:default-scope qpd.default-scope))
          #:bounds qpd.bounds
          #:expect checked )))]))
 
@@ -1223,6 +1198,7 @@
         test_name
         #:preds [sd.prop]
         #:scope sd.scope
+        (~? (~@ #:default-scope sd.default-scope))
         #:bounds sd.bounds
         #:expect sd.expected ))]))
 
@@ -1238,6 +1214,7 @@
         test_name
         #:preds [conj_total] 
         #:scope cd.scope
+        (~? (~@ #:default-scope cd.default-scope))
         #:bounds cd.bounds
         #:expect cd.expected ))]))
 
@@ -1247,14 +1224,14 @@
 ;; A potential improvement is to break apart test-expect
 ;; blocks and examine each test.
 
+; Embed the error message at runtime, so that `option verbose 0` applies. 
 (define-for-syntax (ensure-target-ref target-pred ex)
   (define tp (syntax-e target-pred))
-  (let ([ex-as-datum (syntax->datum ex)])
-    (unless
-      (memq tp (flatten ex-as-datum))
-      (raise-forge-warning
-       #:msg (format "Test does not reference ~a." tp)
-       #:context ex))))
+  (if (memq tp (flatten (syntax->datum ex)))
+      #'(void)
+      (with-syntax ([msg (format "Test does not reference ~a." tp)]
+                    [loc ex])
+        #'(raise-forge-warning #:msg msg #:context (quote-syntax loc)))))
 
 
 (define-syntax (NT-TestSuiteDecl stx)
@@ -1262,11 +1239,11 @@
   [tsd:TestSuiteDeclClass 
    
     ;; Static checks on test blocks go here.
-   (for ([tc (syntax->list #'(tsd.test-constructs ...))])
-        (ensure-target-ref #'tsd.pred-name tc))
+   #:with (warning ...) (for/list ([tc (syntax->list #'(tsd.test-constructs ...))])
+                          (ensure-target-ref #'tsd.pred-name tc))
 
    (syntax/loc stx
-    (begin tsd.test-constructs ...))]))
+    (begin warning ... tsd.test-constructs ...))]))
 
 
 (define-syntax (NT-ExampleDecl stx)
@@ -1351,17 +1328,37 @@
           #:msg (format "Ill-formed block: expected either one expression or any number of formulas; got ~a" xs)
           #:context stx)]))
 
+; Block elements are conjoined by juxtaposition, so `p(x)` parses as two elements, `p` and `(x)`.
+; (Inside a quantifier body, `(x)` even escapes the quantifier, giving "x: unbound identifier".)
+; Detect a parenthesized element that starts exactly where the previous one ends, and suggest
+; square brackets (issue #19). Requiring no whitespace keeps `foo` followed by `(a or b)` on the
+; next line legal.
+(define-for-syntax (check-paren-application elements)
+  (for ([a (in-list elements)]
+        [b (in-list (if (null? elements) '() (cdr elements)))])
+    (define pa (syntax-position a))
+    (define sa (syntax-span a))
+    (define pb (syntax-position b))
+    (define b-parts (syntax->list b))
+    (when (and pa sa pb b-parts (= (length b-parts) 2)
+               (= pb (+ pa sa))
+               (syntax-position (second b-parts))
+               (= (syntax-position (second b-parts)) (add1 pb)))
+      (raise-forge-error
+       #:msg "Parentheses directly after an expression. To call a predicate or function, use square brackets: p[x], not p(x)."
+       #:context b))))
+
 ; Block : /LEFT-CURLY-TOK Expr* /RIGHT-CURLY-TOK
 (define-syntax (NT-Block stx)
   (syntax-parse stx
     [((~datum NT-Block) exprs:ExprClass ...)
+     (check-paren-application (syntax->list #'(exprs ...)))
      (with-syntax ([(exprs ...) (syntax->list #'(exprs ...))])
        (quasisyntax/loc stx
          (disambiguate-block (list exprs ...)
                              #:stx #,(build-source-location stx))))]))
 
 (define-syntax (NT-Expr stx)
-  ;(printf "Debug: Expr: ~a~n" stx)
   (syntax-parse stx
   [((~datum NT-Expr) "let" decls:LetDeclListClass bob:BlockOrBarClass)
    (syntax/loc stx (let decls.translate bob.exprs))]
@@ -1371,11 +1368,11 @@
 
   ; Quantifier
   [((~datum NT-Expr) q:QuantClass decls:DeclListClass bob:BlockOrBarClass)                       
-   (syntax/loc stx (q.symbol decls.translate bob.exprs))] ; stx, not #'q
+   (syntax/loc stx (q.symbol (#:lang (get-check-lang)) decls.translate bob.exprs))] ; stx, not #'q
 
   ; Quantifier with disj
   [((~datum NT-Expr) q:QuantClass "disj" decls:DeclListClass bob:BlockOrBarClass)
-   (syntax/loc stx (q.symbol #:disj decls.translate bob.exprs))] ; stx, not #'q
+   (syntax/loc stx (q.symbol (#:lang (get-check-lang)) #:disj decls.translate bob.exprs))] ; stx, not #'q
 
   [((~datum NT-Expr) expr1:ExprClass (~or "or" "||") expr2:ExprClass)
    (with-syntax ([expr1 (my-expand #'expr1)]
@@ -1537,7 +1534,6 @@
 
   [((~datum NT-Expr) name:NameClass "[" exprs:ExprListClass "]")
    ; Is this production ever used? Both box join and helper use seem to use the Expr version below.
-   ; (printf "expander: Name[Expr...]: ~a~n" #'name)
    (with-syntax ([name #'name.name]
                  [(exprs ...) (datum->syntax #f (map my-expand (syntax->list #'(exprs.exprs ...))))])
      (syntax/loc stx (name exprs ...)))]
@@ -1570,7 +1566,6 @@
 
   [((~datum NT-Expr) name:QualNameClass)
    (define local-value (syntax-local-value #'name.name (lambda () #f)))
-   ; (printf "local-value for ~a: ~a~n" #'name.name local-value)
    (if local-value
        ; if we have a local-value, it's likely a Forge macro or Forge-defined helper procedure
        ; (Node ops in the AST are defined as _macros_ to allow the capture of stx location. Thus, 
@@ -1605,7 +1600,6 @@
 
 ; *New* instance of the structure, with the same values but a (possibly) new source loc
 (define (correct-id-loc astnode #:loc [loc #f])
-  ;(printf "correct-id-loc: ~a; ~a; ~a~n" astnode (node? astnode) loc)
   
   (define new-info (if (node? astnode)
                        (nodeinfo loc (nodeinfo-lang (node-info astnode)) #f)
@@ -1619,12 +1613,12 @@
          (forge:Relation new-info
                          (node/expr-arity astnode) (node/expr/relation-name astnode) (node/expr/relation-typelist-thunk astnode)
                          (node/expr/relation-parent astnode) (node/expr/relation-is-variable astnode) (node/expr/relation-name astnode)
-                         ;(forge:Relation-name astnode)
                          (forge:Relation-sigs-thunks astnode) (forge:Relation-breaker astnode))]
         [(node/expr/quantifier-var? astnode)
          (node/expr/quantifier-var
           new-info
-          (node/expr-arity astnode) (node/expr/quantifier-var-sym astnode) (node/expr/quantifier-var-name astnode))]
+          (node/expr-arity astnode) (node/expr/quantifier-var-sym astnode) (node/expr/quantifier-var-name astnode)
+          (node/expr/quantifier-var-mult astnode))]
         ; Annoyingly, structs aren't polymorphic in the way we need. This is not elegant, but:
 
         ; join, transpose, +, -, &, ^, *, ->, sing, ', ++

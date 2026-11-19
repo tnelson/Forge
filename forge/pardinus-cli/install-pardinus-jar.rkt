@@ -2,7 +2,9 @@
 
 ; Build a Pardinus JAR and installs it in Forge at `pardinus-cli/jar/kodkod.jar`. 
 ; `racket install-pardinus-jar.rkt PARDINUS_DIR`.
-; Note: the sha differs, even if the behavior is identical, since built JARs contain timestamps by default. 
+; Note: the sha differs, even if the behavior is identical, since built JARs contain timestamps by default.
+
+; Run as: `racket -y install-pardinus-jar.rkt PARDINUS_DIR`; then `raco setup forge`. 
 
 (require racket/cmdline
          racket/file
@@ -10,6 +12,7 @@
          racket/path
          racket/runtime-path
          racket/system
+         setup/dirs
          file/sha1
          file/unzip)
 
@@ -68,21 +71,34 @@
   (unless (jar-contains? built "kodkod/cli/KodkodServer.class")
     (die "~a does not contain kodkod/cli/KodkodServer.class" built))
   (copy-file built target-jar #t)
-  (printf "installed: ~a\nsha256:    ~a\n" target-jar (sha256-hex target-jar))
-  (printf "It is recommended to run 'raco setup forge'.\n"))
+  (printf "installed: ~a\nsha256:    ~a\n" target-jar (sha256-hex target-jar)))
 
-(define (main pardinus-arg)
+; Recompile Forge to ensure any version mismatch is fixed.
+(define (setup-forge!)
+  (define raco (build-path (find-console-bin-dir)
+                           (if (eq? (system-type) 'windows) "raco.exe" "raco")))
+  (printf "== recompiling Forge (~a setup --no-docs --pkgs forge)\n" raco)
+  (unless (system* raco "setup" "--no-docs" "--pkgs" "forge")
+    (die "raco setup failed; the new jar is installed, but Forge may need recompiling")))
+
+(define (main pardinus-arg run-setup?)
   (define pardinus-dir (simplify-path (path->complete-path pardinus-arg)))
   (check-pardinus-dir pardinus-dir)
   (printf "Pardinus:  ~a\nInstalls:  ~a\n" pardinus-dir target-jar)
   (build! pardinus-dir)
   (define built (find-built-jar pardinus-dir))
   (printf "built:     ~a\n" built)
-  (install! built))
+  (install! built)
+  (if run-setup?
+      (setup-forge!)
+      (printf "Skipped recompiling Forge; run 'raco setup --pkgs forge' if needed.\n")))
 
 (module+ main
+  (define run-setup? #t)
   (define dir
     (command-line
      #:program "install-pardinus-jar.rkt"
+     #:once-each
+     [("--no-setup") "Don't run raco setup for Forge afterwards" (set! run-setup? #f)]
      #:args (pardinus-dir) pardinus-dir))
-  (main dir))
+  (main dir run-setup?))

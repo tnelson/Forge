@@ -57,9 +57,11 @@
 (check-not-eq? (first (Sat-instances a1)) (first (Sat-instances a2)))
 (check-not-eq? (first (Sat-instances b1)) (first (Sat-instances b2)))
 
-; Evaluation works and provides appropriate answers per run
+; Evaluation works and provides appropriate answers per run. We check this 
+; by comparing the instance struct with what the (Java-side) evaluator says.
+; (If we ever switch over to a different evaluator here, we need to rewrite this test.)
 (check-eq? (length (evaluate sat-run-A 'unused A))
-           2)
+           (length (hash-ref (first (Sat-instances a2)) 'A)))
 (check-eq? (length (evaluate sat-run-A 'unused B))
            0)
 (check-eq? (length (evaluate sat-run-B 'unused A))

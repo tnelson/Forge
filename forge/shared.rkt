@@ -309,7 +309,6 @@
            (let loop ()
              (match (sync receiver)
                [(vector level msg data event-name)
-                ;(printf "Log received: ~a~n" data)
                 (fprintf logger-port-temp "[~a] ~a: ~a\n" level event-name data)
                 (flush-output logger-port-temp)])
              (loop)))))
@@ -324,6 +323,5 @@
 (: log-forge-event (-> Log-Level Symbol String Any Void))
 (define (log-forge-event level topic message datum)
   (when (log-to-file-enabled?)
-    ;(printf "Log sending: ~a~n" datum)
     ; logger level topic message data prefix-message
     (log-message forge-logger-logger level topic message datum #t)))

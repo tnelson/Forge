@@ -43,13 +43,12 @@
      (interpret-expr run-or-state expr relations atom-names quantvars)
      ( print-cmd-cont ")")]
     [(node/formula/quantified info quantifier decls form)
-     ;(writeln formula)
      (print-cmd-cont (format "(~a (" quantifier))
      (define new-quantvars
        (for/fold ([quantvars quantvars])
                  ([decl decls])
          (define new-quantvars (cons (car decl) quantvars))
-         (print-cmd-cont (format "[~a : ~a " (v (get-sym (car decl))) (if (@> (node/expr-arity (car decl)) 1) "set" "one")))
+         (print-cmd-cont (format "[~a : ~a " (v (get-sym (car decl))) (node/expr/quantifier-var-mult (car decl))))
          (interpret-expr run-or-state (cdr decl) relations atom-names new-quantvars)
          (print-cmd-cont "] ")
          new-quantvars))
@@ -57,14 +56,8 @@
      (interpret-formula run-or-state form relations atom-names new-quantvars)
      (print-cmd-cont ")")]
     [(node/formula/sealed info)
-     (interpret-formula info relations atom-names quantvars)]
+     (interpret-formula run-or-state info relations atom-names quantvars)]
 
-     ; (let ([quantvars (cons var quantvars)])
-     ;   ( print-cmd-cont (format "(~a ([~a : ~a " quantifier (v (get-var-idx var quantvars)) (if (@> (node/expr-arity var) 1) "set" "one")))
-     ;   (interpret-expr (cdr (car decls)) relations atom-names quantvars)
-     ;   ( print-cmd-cont "]) ")
-     ;   (interpret-formula run-or-state form relations atom-names quantvars)
-     ;   ( print-cmd-cont ")"))]
     [#t ( print-cmd-cont "true ")]
     [#f ( print-cmd-cont "false ")]
     ))
@@ -198,13 +191,11 @@
         (print-cmd-cont (format "~a " type))])]
     [(? node/expr/op? op)
      (interpret-expr-op run-or-state expr relations atom-names quantvars (node/expr/op-children op))]
-    [(node/expr/quantifier-var info arity sym name)     
-     ;(print-cmd-cont (symbol->string (v sym)))
+    [(node/expr/quantifier-var info arity sym name mult)     
      (print-cmd-cont (symbol->string (v (get-sym expr))))
      (print-cmd-cont " ")]
     [(node/expr/comprehension info len decls form)     
      (define vars (map car decls)) ; account for multiple variables
-     ;(define var (car (car decls)))     
      (let ([quantvars (append vars quantvars)])       
        ( print-cmd-cont "{(") ; start comprehension, start decls
        (for-each (lambda (d) ; each declaration

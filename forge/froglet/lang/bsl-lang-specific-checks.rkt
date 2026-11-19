@@ -129,13 +129,16 @@
     (define expr-node (node/formula/multiplicity-expr formula-node))
     (check-top-expression formula-node expr-node t #:allow-sigs #t)))
 
+(define (check-formula-quantified formula-node node-type child-types)
+  (when (eq? (nodeinfo-lang (node-info formula-node)) LANG_ID)
+    (for ([decl (node/formula/quantified-decls formula-node)])
+      (when (equal? 'set (node/expr/quantifier-var-mult (car decl)))
+        (raise-forge-error
+         #:msg (format "Quantifying over sets (`set` in the declaration of ~a) is not used in Froglet, but is reserved for use in other Forge languages."
+                       (node/expr/quantifier-var-name (car decl)))
+         #:context (car decl))))))
 
-#;(define (check-node-expr-comprehension expr-node node-type child-types)
-    (when (eq? (nodeinfo-lang (node-info expr-node)) LANG_ID)
-      (define loc (nodeinfo-loc (node-info expr-node)))
-      (define locstr (format "line ~a, col ~a, span: ~a" (source-location-line loc) (source-location-column loc) (source-location-span loc)))
-      (printf "Set Comprehension at ~a at loc: ~a~n" (deparse expr-node) locstr)))
-      ;(raise-bsl-error "Set Comprehension" expr-node loc)
+
 
 (define (check-node-expr-op-+ expr-node node-type child-types)
   (when (eq? (nodeinfo-lang (node-info expr-node)) LANG_ID)
@@ -184,9 +187,8 @@
 
 (define bsl-checker-hash (make-hash))
 (hash-set! bsl-checker-hash node/formula/multiplicity check-formula-mult)
-;(hash-set! bsl-checker-hash node/formula/multiplicity check-node-formula-multiplicity)
+(hash-set! bsl-checker-hash node/formula/quantified check-formula-quantified)
 (hash-set! bsl-checker-hash 'empty-join err-empty-join)
-;(hash-set! bsl-checker-hash 'relation-join err-relation-join)
 (hash-set! bsl-checker-hash node/formula/op-on-exprs/in check-node-formula-op-in)
 (hash-set! bsl-checker-hash node/formula/op-on-exprs/= check-node-formula-op-=)
 (hash-set! bsl-checker-hash node/expr/op-on-exprs/+ check-node-expr-op-+)
@@ -198,37 +200,6 @@
 (hash-set! bsl-checker-hash node/expr/op-on-exprs/* check-node-expr-op-*)
 (hash-set! bsl-checker-hash node/expr/op-on-exprs/~ check-node-expr-op-~)
 
-;(hash-set! bsl-checker-hash node/fmla/pred-spacer check-node-fmla-pred-spacer)
-;(hash-set! bsl-checker-hash node/expr/fun-spacer check-node-expr-fun-spacer)
-;(hash-set! bsl-checker-hash node/formula/constant check-node-formula-constant)
-;(hash-set! bsl-checker-hash node/formula/op check-node-formula-op)
-;(hash-set! bsl-checker-hash node/formula/quantified check-node-formula-quantified)
-;(hash-set! bsl-checker-hash node/formula/op-on-formulas/always check-node-formula-op-always)
-;(hash-set! bsl-checker-hash node/formula/op-on-formulas/eventually check-node-formula-op-eventually)
-;(hash-set! bsl-checker-hash node/formula/op-on-formulas/until check-node-formula-op-until)
-;(hash-set! bsl-checker-hash node/formula/op-on-formulas/releases check-node-formula-op-releases)
-;(hash-set! bsl-checker-hash node/formula/op-on-formulas/next_state check-node-formula-op-next_state)
-;(hash-set! bsl-checker-hash node/formula/op-on-formulas/historically check-node-formula-op-historically)
-;(hash-set! bsl-checker-hash node/formula/op-on-formulas/once check-node-formula-op-once)
-;(hash-set! bsl-checker-hash node/formula/op-on-formulas/prev_state check-node-formula-op-prev_state)
-;(hash-set! bsl-checker-hash node/formula/op-on-formulas/since check-node-formula-op-since)
-;(hash-set! bsl-checker-hash node/formula/op-on-formulas/triggered check-node-formula-op-triggered)
-;(hash-set! bsl-checker-hash node/formula/op-on-formulas/&& check-node-formula-op-&&)
-;(hash-set! bsl-checker-hash node/formula/op-on-formulas/|| check-node-formula-op-||)
-;(hash-set! bsl-checker-hash node/formula/op-on-formulas/=> check-node-formula-op-=>)
-;(hash-set! bsl-checker-hash node/formula/op-on-formulas/! check-node-formula-op-!)
-;(hash-set! bsl-checker-hash node/formula/op-on-ints/int> check-node-formula-op-int>)
-;(hash-set! bsl-checker-hash node/formula/op-on-ints/int< check-node-formula-op-int<)
-;(hash-set! bsl-checker-hash node/formula/op-on-ints/int= check-node-formula-op-int=)
-;(hash-set! bsl-checker-hash node/expr/relation check-node-expr-relation)
-;(hash-set! bsl-checker-hash node/expr/atom check-node-expr-atom)
-;(hash-set! bsl-checker-hash node/expr/ite check-node-expr-ite)
-;(hash-set! bsl-checker-hash node/expr/constant check-node-expr-constant)
-;(hash-set! bsl-checker-hash node/expr/op check-node-expr-op)
-;(hash-set! bsl-checker-hash node/expr/quantifier-var check-node-expr-quantifier-var)
-;(hash-set! bsl-checker-hash node/expr/comprehension check-node-expr-comprehension)
-;(hash-set! bsl-checker-hash node/expr/op-on-exprs/prime check-node-expr-op-prime)
-;(hash-set! bsl-checker-hash node/expr/op-on-ints/sing check-node-expr-op-sing)
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

@@ -8,6 +8,9 @@ option verbose 0
 
   Covers: sig bounds, field bounds, piecewise bounds, inheritance,
   multiplicity, and various error conditions.
+
+  This file was created with help from Claude Opus and possibly other agents. 
+  Agent-generated comments in this file need not be preceded by the agent name.
 */
 
 sig Node {edges: set Node}
@@ -52,6 +55,11 @@ test expect validPiecewise {
   } is sat
 
   piecewise_ni: {some Node} for {
+    Node = `A + `B + `C
+    `A.edges ni `B
+  } is sat
+
+  piecewise_ni_lower_only: {edges = Node -> Node} for {
     Node = `A + `B + `C
     `A.edges ni `B
   } is sat
@@ -138,37 +146,35 @@ sig Dog extends Animal {}
 sig Cat extends Animal {}
 sig Sibling1 extends Parent {}
 sig Sibling2 extends Parent {}
-sig LinkedNode {next: one Node}
+sig LinkedNode {next: one LinkedNode}
 
 test expect multiplicityViolations {
   one_sig_multiple: {some OneNode} for {
     OneNode = `A + `B
-  } is unsat
+  } is forge_error "Sig OneNode must contain at least 2 atoms"
 
   lone_sig_multiple: {some LoneNode} for {
     LoneNode = `A + `B
-  } is unsat
+  } is forge_error "Sig LoneNode must contain at least 2 atoms"
 
   abstract_uncovered_atom: {some Animal} for {
     Animal = `A + `B + `C
     Dog = `A
     Cat = `B
-  } is unsat
+  } is forge_error "Atom `C is in abstract sig Animal, but not in any of its children"
 
   sibling_overlap: {some Parent} for {
     Parent = `A + `B
     Sibling1 = `A
     Sibling2 = `A
-  } is unsat
+  } is forge_error "Sibling sigs must be disjoint"
 
-  field_one_too_many: {some Node} for {
-    Node = `A + `B
+  field_one_too_many: {some LinkedNode} for {
     LinkedNode = `A + `B
     next = `A -> `B + `A -> `A
   } is unsat
 
-  field_one_missing: {some Node} for {
-    Node = `A + `B
+  field_one_missing: {some LinkedNode} for {
     LinkedNode = `A + `B
     next = `A -> `B
   } is unsat
@@ -189,4 +195,25 @@ test expect piecewiseErrors {
     Node = `A + `B
     `Z.edges = `A
   } is forge_error "was bounded for atom"
+
+  piecewise_in_range_not_in_sig: {some Node} for {
+    Node = `A + `B
+    `A.edges in `B + `Z
+  } is forge_error "`Z not in bounds for sig Node"
+
+  piecewise_eq_range_not_in_sig: {some Node} for {
+    Node = `A + `B
+    `A.edges = `Z
+  } is forge_error "`Z not in bounds for sig Node"
+
+  piecewise_ni_range_not_in_sig: {some Node} for {
+    Node = `A + `B
+    `A.edges ni `Z
+  } is forge_error "`Z not in bounds for sig Node"
+
+  // Binding expressions are evaluated in order. 
+  used_before_bound: {some Node} for {
+    edges in Node -> Node
+    Node = `A + `B
+  } is forge_error "Node is used before it is bound in this inst"
 }

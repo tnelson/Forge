@@ -148,8 +148,8 @@
      (let ([left-child (deparse-formula (first (node/formula/op-children formula)) PRIORITY-TRIGGERED)]
            [right-child (deparse-formula (second (node/formula/op-children formula)) PRIORITY-TRIGGERED)])
         (if (@<= PRIORITY-TRIGGERED parent-priority)
-            (format "(~a releases ~a)" left-child right-child)
-            (format "~a releases ~a" left-child right-child)))]
+            (format "(~a triggered ~a)" left-child right-child)
+            (format "~a triggered ~a" left-child right-child)))]
 
     [(? node/formula/op-on-exprs/in?)
      (let ([left-child (deparse-expr (first (node/formula/op-children formula)) PRIORITY-COMPAREOP)]
@@ -206,18 +206,6 @@
      (if (@<= PRIORITY-MULT parent-priority)
          (format "(~a ~a)" mult (deparse-expr (node/formula/multiplicity-expr formula) parent-priority))
          (format "~a ~a" mult (deparse-expr (node/formula/multiplicity-expr formula) parent-priority)))]
-    #;[(node/formula/quantified info quantifier decls form)
-     (format "(~a ~a | ~a)"
-            quantifier
-            (foldl (lambda (elt acc)
-                     (string-append acc ", " (format "~a: ~a"
-                                                     (car elt)
-                                                     (deparse-expr (cdr elt) 0))))
-                   (format "~a: ~a"
-                           (car (first decls))
-                           (deparse-expr (cdr (first decls)) 0))
-                   (rest decls))
-            (deparse-formula form 0))]
     
     [(node/formula/quantified info quantifier decls form)
      (format "(~a ~a | ~a)"
@@ -310,7 +298,7 @@
      (format "~a " type)]
     [(? node/expr/op?)
      (deparse-expr-op expr parent-priority)]
-    [(node/expr/quantifier-var info arity sym name)     
+    [(node/expr/quantifier-var info arity sym name mult)     
      (format "~a" name)]
     [(node/expr/comprehension info len decls form) 
      (format "{~a | ~a}"

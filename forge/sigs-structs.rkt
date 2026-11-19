@@ -252,7 +252,8 @@
 ;   this will send back info about crashes, but shouldn't spam (and possibly overfill) stderr.
 (define DEFAULT-OPTIONS : (HashTable Symbol Any)
   (hash 'eval-language     'surface
-        'solver            'SAT4J
+        ; The default solver, whatever it is set to in send-to-solver.rkt. 
+        'solver            'default
         'backend           'pardinus
         'sb                20
         'coregranularity   0
@@ -294,22 +295,22 @@
 (define (oneof-pred lst)
   (lambda ([x : Any]) (if (member x lst) #t #f)))
 
-(define VALID_BUILTIN_SOLVERS '(SAT4J Glucose MiniSat MiniSatProver PMaxSAT4J))
+(define VALID_BUILTIN_SOLVERS '(default SAT4J Glucose MiniSat MiniSatProver PMaxSAT4J))
 
 (define option-types
   (hash 'eval-language symbol?
         ; allow for custom solver path given as a string
         'solver (lambda ([x : Any]) (or (member x VALID_BUILTIN_SOLVERS) (string? x)))
         'backend symbol?
-        ; 'verbosity exact-nonnegative-integer?
         'sb exact-nonnegative-integer?
-        'coregranularity exact-nonnegative-integer?
-        'logtranslation exact-nonnegative-integer?
+        ; Pardinus only accepts these ranges.
+        'coregranularity (lambda ([x : Any]) (and (exact-integer? x) (<= 0 x 3)))
+        'logtranslation (lambda ([x : Any]) (and (exact-integer? x) (<= 0 x 2)))
         'min_tracelength exact-positive-integer?
         'max_tracelength exact-positive-integer?
         'problem_type symbol?
         'target_mode (oneof-pred '(close_noretarget far_noretarget close_retarget far_retarget hamming_cover))
-        'core_minimization symbol?
+        'core_minimization (oneof-pred '(fast rce hybrid))
         'skolem_depth exact-integer?
         'local_necessity symbol?
         'run_sterling (lambda (x) (or (symbol? x)
@@ -332,13 +333,13 @@
         'solver (format "one of ~a or a path string" VALID_BUILTIN_SOLVERS)
         'backend "symbol"
         'sb "non-negative integer"
-        'coregranularity "non-negative integer"
-        'logtranslation "non-negative integer"
+        'coregranularity "an integer from 0 to 3"
+        'logtranslation "an integer from 0 to 2"
         'min_tracelength "positive integer"
         'max_tracelength "positive integer"
         'problem_type "symbol"
         'target_mode "one of: close_noretarget far_noretarget close_retarget far_retarget hamming_cover"
-        'core_minimization "symbol"
+        'core_minimization "one of: fast rce hybrid"
         'skolem_depth "integer"
         'local_necessity "symbol"
         'run_sterling "symbol, string, or sequence of strings"
@@ -720,26 +721,27 @@ Returns whether the given run resulted in sat or unsat, respectively.
 (: close-run (-> Run Void))
 (define (close-run run)
   (unless (is-run-closed? run)
-    (assert-solver-process-alive run)
     (when (>= (get-verbosity) VERBOSITY_HIGH)
           (printf "Clearing run ~a. Keeping engine process active...~n" (Run-name run)))
     ; Cut off this Run's ability to query the solver, since it's about to be closed
     ; This state is referenced in the instance-generator thunk
     (add-closed-run-name! (Run-name run))
 
-    ; Since we're using a single process now, send it instructions to clear this run
-    ; Different backends will be cleared in different ways.
-    (define backend (get-option (Run-run-spec run) 'backend))
-    (match backend
-      ['pardinus
-       (parameterize ([pardinus-port (get-stdin run)])
-         (pardinus-clear (Run-name run))
-         (flush-output (get-stdin run)))]
-      ['smtlibtor
-       (cvc5-smtlib-display (get-stdin run) "(reset)")]
-      [else
-       (raise-forge-error #:msg (format "Unsupported backend when closing solver run: ~a" backend)
-                          #:context #f)])))
+    ; If the process is already gone, we have nothing to clear anymore. 
+    (when (is-solver-process-alive? run)
+      ; Since we're using a single process now, send it instructions to clear this run
+      ; Different backends will be cleared in different ways.
+      (define backend (get-option (Run-run-spec run) 'backend))
+      (match backend
+        ['pardinus
+         (parameterize ([pardinus-port (get-stdin run)])
+           (pardinus-clear (Run-name run))
+           (flush-output (get-stdin run)))]
+        ['smtlibtor
+         (cvc5-smtlib-display (get-stdin run) "(reset)")]
+        [else
+         (raise-forge-error #:msg (format "Unsupported backend when closing solver run: ~a" backend)
+                            #:context #f)]))))
 
 ; is-solver-process-alive? :: Run -> Boolean
 ; This reports whether the _solver server process_ is running;
@@ -937,11 +939,24 @@ Returns whether the given run resulted in sat or unsat, respectively.
 
 ; Do not check integer literals with respect to bitwidth for these backends
 (define UNBOUNDED_INT_BACKENDS : (Listof Symbol) '(smtlibtor))
+; 
+; Memoization for `primify`, below; the key is a run-or-state object. 
+(: primify-cache (Weak-HashTable (U Run Run-spec State) (Mutable-HashTable Symbol (Listof Symbol))))
+(define primify-cache (make-weak-hasheq))
 
 ; Turn signame into list of all primsigs it contains
 ; Note we use Alloy-style "_remainder" names here; these aren't necessarily embodied in Forge
 (: primify (-> (U Run Run-spec State) (U Symbol String) (Listof Symbol)))
 (define (primify run-or-state raw-signame)
+  (define signame (if (string? raw-signame) (string->symbol raw-signame) raw-signame))
+  (: prims-by-sig (Mutable-HashTable Symbol (Listof Symbol)))
+  (define prims-by-sig
+    (hash-ref! primify-cache run-or-state
+               (lambda () (ann (make-hasheq) (Mutable-HashTable Symbol (Listof Symbol))))))
+  (hash-ref! prims-by-sig signame (lambda () (primify-uncached run-or-state signame))))
+
+(: primify-uncached (-> (U Run Run-spec State) (U Symbol String) (Listof Symbol)))
+(define (primify-uncached run-or-state raw-signame)
   (let ([signame : Symbol (cond [(string? raw-signame) (string->symbol raw-signame)]
                                 [(Sig? raw-signame) (Sig-name raw-signame)]
                                 [else raw-signame])])

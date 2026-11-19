@@ -257,8 +257,6 @@
 (define (form-comprehension run-or-state expr relations atom-names quantvars quantvar-types decls bounds processed-form)
 
   ; step 1: collect each of the variables in the formula
-  ;(define collector-lambda (lambda (n ctxt) (if (node/expr/quantifier-var? n) n #f)))
-  ;(define comprehension-quantvars (remove-duplicates (collect expr collector-lambda #:order 'pre-order)))
   ; ^ Unused now. Strategy is based only on outer context and decls of the comprehension itself.
   
   ; step 2: split up the decls
@@ -317,17 +315,12 @@
                       (string->symbol (format "~a" set-name)) 
                       `(,set-name ,@(map (lambda (var) (string->symbol (format "~a" var))) argument-vars))))
   (define constraint-pairs (map cons argument-vars argument-types))
-  ;(define const-name (string->symbol (format "_~a_atom" (gensym))))
-  ;(define new-decl `(declare-const ,const-name IntAtom))
-  ;(define new-constraint `(= (IntAtom-to-Int ,const-name) ,(car processed-form)))
 
   (define constraint-str (if (equal? (length constraint-pairs) 0) 
                                   `(assert (and ;,new-constraint
-                                                ;(set.subset (set.singleton (tuple ,const-name)) ,get-set)))
                                                 (= ,(car processed-form) (IntAtom-to-Int (reconcile-int_atom ,get-set)))))
                                   `(assert (forall (,@(map (lambda (x) (string->symbol (format "(~a ~a)" (car x) (atom-or-int (cdr x))))) constraint-pairs)) 
                                                    (and ;,new-constraint
-                                                        ;(set.subset (set.singleton (tuple ,const-name)) ,get-set))))))
                                                     (= ,(car processed-form) (IntAtom-to-Int (reconcile-int_atom ,get-set)))
                                                     (set.is_singleton ,get-set))))))
 
@@ -440,7 +433,6 @@
             (if (get-annotation info 'smt/int-unwrap)
                 (format "~a" name)
                 (format "(set.singleton (tuple ~a))" name))
-            ;[(equal? #\$ (string-ref name 0)) (check-skolem-type run-or-state expr relations atom-names quantvars quantvar-types bounds)]
             ]
            [else
             ; This is not a Skolem function; continue as normal.
@@ -459,10 +451,6 @@
     [(node/expr/constant info arity 'iden)
      `(rel.iden (as set.universe (Relation Atom)))]
     [(node/expr/constant info arity 'none)
-     ; produce an empty set of the appropriate arity
-    ;  (for/fold ([acc "set.empty"])
-    ;            ([todo (build-list (@- arity 1) (lambda (x) x))])
-    ;    (format "(rel.product set.empty ~a)" acc))]
     ; temporary patch - make it an empty set of int relations, but eventually we want to use atom-or-int to some capacity
     `(as set.empty (Relation Int))]
     [(node/expr/constant info arity type)
@@ -470,7 +458,7 @@
                         #:context info)]
     [(? node/expr/op? op)
      (convert-expr-op run-or-state expr relations atom-names quantvars quantvar-types (node/expr/op-children op) bounds)]
-    [(node/expr/quantifier-var info arity sym name)
+    [(node/expr/quantifier-var info arity sym name mult)
      ; If this is an integer-unwrapping quantifier variable, it will be declared of sort Int,
      ; and should not be wrapped to make it a singleton-set-of-tuples. Otherwise, it must be
      ; wrapped so that relational operators can work with it directly.
@@ -585,10 +573,8 @@
     [(node/int/op-on-exprs/sum info children)
      ; Since we are following the CRS/cvc4 work for integer-handling, the child must always be a singleton.
      ; This holds whether or not the "sum" was added automatically, but manual/auto affects the nature of the error.
-     ;(printf "qv-types: ~a; qvs: ~a~n" quantvar-types quantvars)
      (define inferred-multiplicity (expression-type-multiplicity
                                     (checkExpression run-or-state (first children) (map pair->list quantvar-types) (make-hash))))
-     ; (printf "***** inferred-multiplicity: ~a ~a~n" (first children) inferred-multiplicity)
      ; TODO: pass back something better than #t or #f
      (unless (member inferred-multiplicity '(one lone no #t))
        (if (get-annotation info 'automatic-int-conversion)

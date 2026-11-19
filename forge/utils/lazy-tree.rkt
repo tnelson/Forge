@@ -13,11 +13,6 @@
 (struct computation/delayed computation (thnk))
 (struct computation/evaluated computation (value))
 
-; (struct/contract node (
-;   [[datum #:mutable] computation?]
-;   [child-generator (-> any/c node?)]
-;   [children (hash/c any/c node?)]
-;   [[ancestors #:mutable] (listof node?)]))
 
 (struct node ([datum #:mutable] child-generator children [ancestors #:mutable]))
 

@@ -7,7 +7,17 @@
 (require (only-in racket curry add-between))
 (require "native-dir.rkt")
 
-(provide pardinus-initializer server%)
+(provide pardinus-initializer server% native-glucose-available?)
+
+; Helper box for resolving the "default" solver
+(define native-glucose-present (box #f))
+(define (native-glucose-available?) (unbox native-glucose-present))
+
+(define (glucose-lib-name os)
+  (case os
+    [(macosx) "libglucose.dylib"]
+    [(windows) "glucose.dll"]
+    [else "libglucose.so"]))
 
 (define-runtime-path pardinus (build-path ".."))
 
@@ -44,6 +54,8 @@
     (define cpu-choice (resolve-cpu java-arch-name (system-type 'arch)))
     (define native-subdir (native-subdir-name (system-type 'os*) (car cpu-choice)))
     (define native-dir (and native-subdir (build-path pardinus/jar "native" native-subdir)))
+    (set-box! native-glucose-present
+              (and native-dir (file-exists? (build-path native-dir (glucose-lib-name (system-type 'os*))))))
     
     ; Even if there are no native libraries available, Forge can run via SAT4j.
     (define lib-path-args

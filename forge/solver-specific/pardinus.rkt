@@ -14,10 +14,6 @@
     print solve
   |#
   
-; (define-syntax-rule (kk-print lines ...)
-;   (kodkod:cmd 
-;     [stdin]
-;     lines ...))
 
 
 (require forge/sigs-structs

@@ -56,13 +56,10 @@
              (@> (length rdata-plus) (length rdata)))
     (printf "Forcing inclusion of LN- tuples: ~a~n" (remove* rdata rdata-plus)))
 
-  ;(printf "rdata-plus: ~a~n" rdata-plus)
   (apply string-append (map (curry tuple-to-XML-string r-tuple-annotations) rdata-plus)))
 
 (define (type-to-XML-string typestring ID-hash)
   (string-append "<type ID=\"" (number->string (hash-ref ID-hash typestring)) "\"/>"))
-  ; Always give univ as parent type, to avoid LN- causing a type error in Sterling (TN Jan 30 '21)
-  ;(string-append "<type ID=\"" (number->string 2) "\"/>"))
 
 (define (types-to-XML-string rel ID-hash)  
   (define xml-expected-types
@@ -183,7 +180,6 @@
   
   (define prologue (string-append "<alloy builddate=\"" (date->string (current-date)) "\">\n"))
   (define (instance-prologue idx)
-    ;(printf "instance-prologue: ~a~n" idx)
     (string-append 
      "<instance bitwidth=\"" (number->string bitwidth) "\" maxseq=\"-1\" command=\""
      command-for-display "\" filename=\"" filepath

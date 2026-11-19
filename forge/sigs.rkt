@@ -130,7 +130,6 @@
 (define (state-add-sig state name new-sig extends)
   (when (member name (State-sig-order state))
     (raise-user-error (format "tried to add sig ~a, but it already existed" name)))
-  ;(define new-sig (Sig name rel one abstract extends))
   (when (and extends (not (member extends (State-sig-order state))))
     (raise-user-error (format "Can't extend nonexistent sig ~a. Options were: ~a"
                               extends (State-sig-order state))))
@@ -147,7 +146,6 @@
 (define (state-add-relation state name new-relation)
   (when (member name (State-relation-order state))
     (error (format "tried to add relation ~a, but it already existed" name)))
-  ;(define new-relation (Relation name rel rel-sigs breaker))
   (define new-state-relations (hash-set (State-relations state) name new-relation))
   (define new-state-relation-order (append (State-relation-order state) (list name)))
   (struct-copy State state
@@ -283,10 +281,6 @@
          (define true-sigs (list (thunk (get-sig curr-state sig1))
                                  (thunk (get-sig curr-state sig2))
                                  (thunk (get-sig curr-state sigs)) ...))
-         ;(printf "relation sigs: ~a~n" (list sig1 sig2 sigs ...))
-         ; (define true-sigs (map (compose Sig-name ;;; Bugged since relation before sig in #lang forge
-         ;                                 (curry get-sig curr-state ))
-         ;                        (list sig1 sig2 sigs ...)))
          (define true-breaker (~? breaker #f))
          (define checker-hash (get-ast-checker-hash))
          (when (hash-has-key? checker-hash 'field-decl) ((hash-ref checker-hash 'field-decl) true-breaker))
@@ -308,10 +302,6 @@
          (define true-sigs (list (thunk (get-sig curr-state sig1))
                                  (thunk (get-sig curr-state sig2))
                                  (thunk (get-sig curr-state sigs)) ...))
-         ;(printf "relation sigs: ~a~n" (list sig1 sig2 sigs ...))
-         ; (define true-sigs (map (compose Sig-name ;;; Bugged since relation before sig in #lang forge
-         ;                                 (curry get-sig curr-state ))
-         ;                        (list sig1 sig2 sigs ...)))
          (define true-breaker (~? breaker #f))
          (define checker-hash (get-ast-checker-hash))
          (when (hash-has-key? checker-hash 'field-decl) ((hash-ref checker-hash 'field-decl) true-breaker))
@@ -576,6 +566,10 @@
             (~optional (~or (~seq #:preds (preds ...))
                             (~seq #:preds pred)))
             (~optional (~seq #:scope ((sig:id (~optional lower:nat) upper:nat) ...)))
+            
+            ; `for N` 
+            (~optional (~seq #:default-scope default-scope:nat))
+            
             (~optional (~or (~seq #:bounds (boundss ...))
                             (~seq #:bounds bound)))
             
@@ -591,8 +585,6 @@
                             (~and #:target-contrast target-contrast)))) ...)
      
      (quasisyntax/loc stx (begin
-         ;(define checker-hash (get-ast-checker-hash))
-;         (printf "sigs run ~n ch= ~a~n" checker-hash)
                      
          (define run-name (~? (~@ 'name) (~@ 'no-name-provided)))
          (define run-preds (~? (list preds ...) (~? (list pred) (list))))         
@@ -639,6 +631,7 @@
                            #:name run-name
                            #:preds preds-maybe-with-gadget
                            #:scope run-scope
+                           #:default-scope (~? default-scope #f)
                            #:bounds bounds-maybe-with-gadget
                            #:solver run-solver
                            #:backend run-backend
@@ -724,7 +717,8 @@
 
            ; Only report passing if error was caught/matched as expected
            (unless (or run-reference handler-failed)
-             (when (member 'name (hash-keys (State-runmap curr-state)))
+             (when (and (member 'name (hash-keys (State-runmap curr-state)))
+                        (>= (get-verbosity) VERBOSITY_LOW))
                (printf "Warning: successful `is forge_error` test run left in state environment: ~a.~n" 'name))
              (report-passing-test #:name 'name))]
 
@@ -733,13 +727,14 @@
           [(member 'expected '(sat unsat unknown))           
            run-stx
            (define first-instance (tree:get-value (Run-result name)))
-           (if (not (equal? (if (Sat? first-instance) 'sat 'unsat) 'expected))
+           (define actual (cond [(Sat? first-instance) 'sat]
+                                [(Unsat? first-instance) 'unsat]
+                                [(Unknown? first-instance) 'unknown]))
+           (if (not (equal? actual 'expected))
                (report-test-failure
                 #:name 'name
                 #:msg (format "Failed test ~a. Expected ~a, got ~a.~a"
-                              'name 'expected (cond [(Sat? first-instance) 'sat]
-                                                    [(Unsat? first-instance) 'unsat]
-                                                    [(Unknown? first-instance) 'unknown])
+                              'name 'expected actual
                               ; Report additional info for Sat and Unsat. If Unknown, report nothing.
                               (cond [(Sat? first-instance)
                                      (format " Found instance ~a" first-instance)]
@@ -753,7 +748,6 @@
                       (close-run name)))]
 
           [(equal? 'expected 'checked)
-           ;#,(syntax/loc stx (check name args ...))
            check-stx
            (define first-instance (tree:get-value (Run-result name)))
            (cond [(Sat? first-instance)
@@ -877,12 +871,14 @@
             (~alt
              (~optional (~seq #:preds (pred ...)))
              (~optional (~seq #:scope ((sig:id (~optional lower:nat #:defaults ([lower #'0])) upper:nat) ...)))
+             (~optional (~seq #:default-scope default-scope:nat))
              (~optional (~seq #:bounds (bound ...)))) ...)
      (with-syntax* ([pred-conj (syntax/loc stx (&& (~? (~@ pred ...))))]
                     [neg-pred-conj (syntax/loc stx (! pred-conj))])
        (quasisyntax/loc stx
          (run name (~? (~@ #:preds [neg-pred-conj]))
               (~? (~@ #:scope ([sig lower upper] ...)))
+              (~? (~@ #:default-scope default-scope))
               (~? (~@ #:bounds (bound ...))))))]))
 
 
@@ -949,7 +945,6 @@
                            #:msg "Could not evaluate in current language - must be surface or core."
                            #:context #f)]))
 
-            ;(printf "Run Atoms: ~a~n" (Run-atoms run))
 
             ; Evaluate command
             (define full-command (datum->syntax #f `(let
@@ -1028,12 +1023,6 @@
 ;;;;;; Scope/Bound Updaters ;;;;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-; set-bitwidth :: Scope, int -> Scope
-; Updates the bitwidth for the given Scope.
-;(define (set-bitwidth scope n)
-;  (struct-copy Scope scope
-;               [bitwidth n]))
-;
 
 (define (solution-diff s1 s2)
   (map instance-diff (Sat-instances s1) (Sat-instances s2)))
