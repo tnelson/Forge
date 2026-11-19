@@ -34,4 +34,16 @@ test expect {
   -- `one` and `lone` quantifiers desugar to comprehensions
   oneSet:          { one X: set A | #X = 3 } for exactly 3 A is forge_error "only supported for `some`, `all`, and `no`"
   loneSet:         { lone X: set A | #X = 3 } for exactly 3 A is forge_error "only supported for `some`, `all`, and `no`"
+
+  -- Domains of arity > 1 (only with `set`)
+  relSymSat:       { some r: set A -> A | some r and r = ~r } for exactly 3 A is sat
+  relTernarySat:   { some r: set A -> A -> A | #r = 2 } for exactly 2 A is sat
+  relOpsSat:       { some r: set A -> A | r.A = A and A.r = A and no r & iden } for exactly 3 A is sat
+  relClosureSat:   { some r: set A -> A | A->A in ^r and #r = 3 } for exactly 3 A is sat
+  relTooBig:       { some r: set A -> A | #r > 4 } for exactly 2 A is unsat
+  relAllChecked:   { all r: set A -> A | ~~r = r } for exactly 3 A is checked
+  relAllRun:       { all r: set A -> A | some r } for exactly 2 A is forge_error "effectively existential"
+  relArityMismatch: { some r: set A -> A | r in A } for exactly 2 A is forge_error "same arity"
+  relWithoutSet:   { some e: A -> A | some e } for exactly 2 A is forge_error "arity-1"
+  relOneSet:       { one r: set A -> A | some r } for exactly 2 A is forge_error "only supported for `some`, `all`, and `no`"
 }

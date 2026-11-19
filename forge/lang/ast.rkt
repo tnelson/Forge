@@ -527,10 +527,10 @@
      (fprintf port "~a" (node/expr/quantifier-var-name self)))])
 
 ; function to create a unary quantifier-var (no macro)
-(define (var [raw-sym #f] #:info [node-info empty-nodeinfo] #:mult [mult 'one])
+(define (var [raw-sym #f] #:info [node-info empty-nodeinfo] #:mult [mult 'one] #:arity [arity 1])
   (define sym (@or raw-sym (gensym 'var)))
   (node/expr/quantifier-var node-info
-                            1 
+                            arity
                             sym sym mult))
 
 ; Helper macro to create a quantified variable with proper syntax location
@@ -580,6 +580,8 @@
     (raise-forge-error
      #:msg (format "Set-comprehension cannot use the same variable name more than once; used: ~a." vars)
      #:context info))
+  ; `one`/`lone` desugar to comprehensions, so we need to check for higher-order 
+  (reject-set-mult-decls decls)
 
   (for ([e (map cdr decls)])
     (unless (node/expr? e)
@@ -592,7 +594,6 @@
       (raise-forge-error
        #:msg (format "Set-comprehension condition expected a formula: ~a" (deparse formula))
        #:context formula)))
-  (reject-set-mult-decls decls)
   (node/expr/comprehension info (length decls) decls formula))
 (define (set/func decls formula #:info [node-info empty-nodeinfo])
   (comprehension node-info decls formula))
@@ -613,6 +614,7 @@
                    pred)
         (quasisyntax/loc stx
           (let* ([r0 (qvar r0 e0 "set" m0.mult)] ... )
+            (reject-set-mult-decls (list (cons r0 e0) ...))
             ; We need to check these only inside the let*, to allow for later decls to use earlier ones.
             (unless (node/expr? e0)
               (raise-set-comp-quantifier-error e0))
@@ -804,6 +806,7 @@
     (raise-forge-error
      #:msg (format "sum aggregator only supports a single variable; if you wish to sum over multiple domains, please use nested sum aggregators.")
      #:context node-info))
+  (reject-set-mult-decls decls)
   (for ([e (map cdr decls)])
     (unless (node/expr? e)
       (raise-forge-error
@@ -813,7 +816,6 @@
       (raise-forge-error
        #:msg (format "sum aggregator expected its declaration expression to have arity 1, given ~a" e)
        #:context e)))
-  (reject-set-mult-decls decls)
   (define int-expr (cond [(node/expr? raw-int-expr) 
                           (expr->intexpr/maybe raw-int-expr #:op 'sum #:info node-info)]
                          [else 
@@ -953,13 +955,21 @@
      #:msg (format "~a quantified-formula must be desugared first to some, all, or no." quantifier)
      #:context info))
   
-  (for ([e (in-list (map cdr decls))])
+  (for ([decl (in-list decls)])
+    (define v (car decl))
+    (define e (cdr decl))
     (unless (node/expr? e)
       (raise-forge-error #:msg (format "~a quantifier expected an expression for domain, got ~a" quantifier e)
                          #:context (if (node? e) e info)))
-    (unless (equal? (node/expr-arity e) 1)
+    ; A variable declared with `set` multiplicity is allowed any arity, not just arity=1. 
+    (unless (or (equal? (node/expr-arity e) 1)
+                (equal? 'set (node/expr/quantifier-var-mult v)))
       (raise-forge-error #:msg (format "~a quantifier expected an arity-1 expression for domain, got ~a" quantifier e)
-                         #:context (if (node? e) e info))))
+                         #:context (if (node? e) e info)))
+    (unless (equal? (node/expr-arity v) (node/expr-arity e))
+      (raise-forge-error #:msg (format "~a quantifier variable ~a has arity ~a, but its domain ~a has arity ~a"
+                                       quantifier v (node/expr-arity v) e (node/expr-arity e))
+                         #:context v)))
   (unless (or (node/formula? formula) (equal? #t formula))
     (raise-forge-error #:msg (format "~a quantifier body expected a formula, got ~a" quantifier formula)
                        #:context (if (node? formula) formula info)))

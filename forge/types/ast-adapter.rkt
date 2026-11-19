@@ -227,7 +227,7 @@
   [add/func (->* (node/int node/int) (#:info nodeinfo) node/int)]
   [sum/func (->* (node/expr) (#:info nodeinfo) node/int)]
   [sing/func (->* (node/int) (#:info nodeinfo) node/expr)]
-  [var (->* () (Symbol #:info nodeinfo #:mult Symbol) node/expr/quantifier-var)]
+  [var (->* () (Symbol #:info nodeinfo #:mult Symbol #:arity Number) node/expr/quantifier-var)]
   [(ite/info-helper ite/func) (-> nodeinfo node/formula node/expr node/expr node/expr)]
   [build-box-join (-> node/expr (Listof node/expr) node/expr)]
   [maybe-and->list (-> node/formula (Listof node/formula))]

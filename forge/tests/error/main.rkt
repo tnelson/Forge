@@ -234,7 +234,7 @@
     (list "bad_option_type.frg" #rx"requires an integer from 0 to 2")
     ;; Bad enum member 
     (list "bad_option_enum.frg" #rx"requires one of")
-    (list "quant-over-set.frg" #rx"quant-over-set.frg:4:10.*Unsupported use of `set` in the declaration of X.*effectively existential")
+    (list "quant-over-set.frg" #rx"quant-over-set.frg:7:10.*Unsupported use of `set` in the declaration of X.*effectively existential")
     (list "paren-application.frg" #rx"paren-application.frg:5:31.*use square brackets: p\\[x\\], not p\\(x\\)")
   ))
 
