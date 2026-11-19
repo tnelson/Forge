@@ -144,6 +144,14 @@
 
   (print-version-number)
 
+  (let ([min-len (get-option run-spec 'min_tracelength)]
+        [max-len (get-option run-spec 'max_tracelength)])
+    (when (and (equal? 'temporal (get-option run-spec 'problem_type))
+               (exact-integer? min-len) (exact-integer? max-len) (> min-len max-len))
+      (raise-forge-error
+       #:msg (format "min_tracelength (~a) cannot be greater than max_tracelength (~a)." min-len max-len)
+       #:context run-command)))
+
   ; Set up breakers on each relation. These may arise from declaration multiplicities like "lone"
   ; or from partial-instance annotations like "is linear".
   ; TODO TYPES: really? what about relations declared pfunc / is linear together?

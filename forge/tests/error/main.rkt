@@ -232,8 +232,9 @@
     (list "bad_option_name.frg" #rx"No such option")
     ;; Bad option types
     (list "bad_option_type.frg" #rx"requires an integer from 0 to 2")
-    ;; Bad enum member (checked via option types)
+    ;; Bad enum member 
     (list "bad_option_enum.frg" #rx"requires one of")
+    (list "paren-application.frg" #rx"paren-application.frg:5:31.*use square brackets: p\\[x\\], not p\\(x\\)")
   ))
 
 

@@ -1183,18 +1183,6 @@
        (hash-set options 'solver (if (and (string? value) original-path)
                              (path->string (build-path original-path (string->path value)))
                              value))]
-      [(equal? option 'min_tracelength)
-       (let ([max-trace-length (get-option state 'max_tracelength)])
-         (if (> value max-trace-length)
-             (raise-user-error (format "Cannot set min_tracelength to ~a because min_tracelength cannot be greater than max_tracelength. Current max_tracelength is ~a."
-                                       value max-trace-length))
-             (hash-set options option value)))]
-      [(equal? option 'max_tracelength)
-       (let ([min-trace-length (get-option state 'min_tracelength)])
-         (if (< value min-trace-length)
-             (raise-user-error (format "Cannot set max_tracelength to ~a because max_tracelength cannot be less than min_tracelength. Current min_tracelength is ~a."
-                                       value min-trace-length))
-             (hash-set options option value)))]
       [(equal? option 'run_sterling)
        (hash-set options 'run_sterling (cond
                            [(and (string? value) original-path)

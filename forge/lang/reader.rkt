@@ -65,7 +65,7 @@
   (syntax-parse tree #:datum-literals (NT-AlloyModule NT-ModuleDecl NT-Import)
     [(NT-AlloyModule (~optional (~and module-decl
                                       (NT-ModuleDecl _ ...)))
-                     (~seq (~and import (NT-Import _)) ...)
+                     (~seq (~and import (NT-Import _ ...)) ...)
                      . parags)
      #:with (paragraphs ...)
             (quasisyntax/loc tree

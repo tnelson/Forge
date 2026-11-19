@@ -310,7 +310,7 @@
         'max_tracelength exact-positive-integer?
         'problem_type symbol?
         'target_mode (oneof-pred '(close_noretarget far_noretarget close_retarget far_retarget hamming_cover))
-        'core_minimization symbol?
+        'core_minimization (oneof-pred '(fast rce hybrid))
         'skolem_depth exact-integer?
         'local_necessity symbol?
         'run_sterling (lambda (x) (or (symbol? x)
@@ -339,7 +339,7 @@
         'max_tracelength "positive integer"
         'problem_type "symbol"
         'target_mode "one of: close_noretarget far_noretarget close_retarget far_retarget hamming_cover"
-        'core_minimization "symbol"
+        'core_minimization "one of: fast rce hybrid"
         'skolem_depth "integer"
         'local_necessity "symbol"
         'run_sterling "symbol, string, or sequence of strings"

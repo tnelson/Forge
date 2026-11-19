@@ -148,8 +148,8 @@
      (let ([left-child (deparse-formula (first (node/formula/op-children formula)) PRIORITY-TRIGGERED)]
            [right-child (deparse-formula (second (node/formula/op-children formula)) PRIORITY-TRIGGERED)])
         (if (@<= PRIORITY-TRIGGERED parent-priority)
-            (format "(~a releases ~a)" left-child right-child)
-            (format "~a releases ~a" left-child right-child)))]
+            (format "(~a triggered ~a)" left-child right-child)
+            (format "~a triggered ~a" left-child right-child)))]
 
     [(? node/formula/op-on-exprs/in?)
      (let ([left-child (deparse-expr (first (node/formula/op-children formula)) PRIORITY-COMPAREOP)]

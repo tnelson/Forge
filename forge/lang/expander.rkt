@@ -865,6 +865,8 @@
     ; take the importing module's location into account. 
     [((~datum NT-Import) file-path:str
                          (~optional (~seq "as" as-name:NameClass)))
+     ; If the import has an `as name`, as Alloy does, prefix identifiers with `name/`. 
+     #:attr pfx (and (attribute as-name) (format-id #'as-name.name "~a/" #'as-name.name))
      (unless (file-exists? (build-path (current-load-relative-directory) (syntax->datum #'file-path)))
        (raise-forge-error #:msg (format "File to import was not found: ~a" (syntax->datum #'file-path))
                           #:context (build-source-location stx)))
@@ -872,7 +874,7 @@
        (begin         
        ; TODO: absolute paths should work in Windows here, but relative paths 
        ; not so much.
-         (~? (require (prefix-in as-name.name file-path))
+         (~? (require (prefix-in pfx file-path))
              (require file-path))))]
 
     ; Path relative to the `library` subfolder of the Forge package
@@ -880,6 +882,8 @@
     [((~datum NT-Import) import-name:QualNameClass
                          (~optional (~seq "[" other-names:QualNameListClass "]"))
                          (~optional (~seq "as" as-name:NameClass)))
+     ; If the import has an `as name`, as Alloy does, prefix identifiers with `name/`. 
+     #:attr pfx (and (attribute as-name) (format-id #'as-name.name "~a/" #'as-name.name))
 
      (when (syntax->datum #'(~? other-names #f))
        (raise (format "Parameterized import not yet implemented. ~a" 'other-names)))
@@ -892,7 +896,7 @@
      (with-syntax ([fp (datum->syntax #'import-name actual-module-path #'import-name)])
        (quasisyntax/loc stx
            ; It is important that the module-path given here has the context of the Forge module. 
-           (~? (require (prefix-in as-name.name fp))
+           (~? (require (prefix-in pfx fp))
               (require fp))
        ))]))
 
@@ -1317,10 +1321,31 @@
           #:msg (format "Ill-formed block: expected either one expression or any number of formulas; got ~a" xs)
           #:context stx)]))
 
+; Block elements are conjoined by juxtaposition, so `p(x)` parses as two elements, `p` and `(x)`.
+; (Inside a quantifier body, `(x)` even escapes the quantifier, giving "x: unbound identifier".)
+; Detect a parenthesized element that starts exactly where the previous one ends, and suggest
+; square brackets (issue #19). Requiring no whitespace keeps `foo` followed by `(a or b)` on the
+; next line legal.
+(define-for-syntax (check-paren-application elements)
+  (for ([a (in-list elements)]
+        [b (in-list (if (null? elements) '() (cdr elements)))])
+    (define pa (syntax-position a))
+    (define sa (syntax-span a))
+    (define pb (syntax-position b))
+    (define b-parts (syntax->list b))
+    (when (and pa sa pb b-parts (= (length b-parts) 2)
+               (= pb (+ pa sa))
+               (syntax-position (second b-parts))
+               (= (syntax-position (second b-parts)) (add1 pb)))
+      (raise-forge-error
+       #:msg "Parentheses directly after an expression. To call a predicate or function, use square brackets: p[x], not p(x)."
+       #:context b))))
+
 ; Block : /LEFT-CURLY-TOK Expr* /RIGHT-CURLY-TOK
 (define-syntax (NT-Block stx)
   (syntax-parse stx
     [((~datum NT-Block) exprs:ExprClass ...)
+     (check-paren-application (syntax->list #'(exprs ...)))
      (with-syntax ([(exprs ...) (syntax->list #'(exprs ...))])
        (quasisyntax/loc stx
          (disambiguate-block (list exprs ...)
