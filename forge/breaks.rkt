@@ -260,6 +260,16 @@
                         (set-remove! sigs (hash-ref name-to-rel t))))))))
 
     (define sig-bounds (filter (lambda ([b : bound]) (member (bound-relation b) maybe-list-sigs)) total-bounds))
+    
+    ; For a p/linear order indexed by atom: bounds-break the relation for the index sig's first atom.  
+    ; This is only sound if the atoms certainly exist. 
+    (define (owners-present? [rel-list : (Listof node/expr/relation)]) : Boolean
+      (andmap (lambda ([p : node/expr/relation])
+                (define ups (hash-ref bounds-store p (lambda () (list))))
+                (define b (findf (lambda ([b : bound]) (equal? (bound-relation b) p)) sig-bounds))
+                (and (pair? ups) b (member (list (car ups)) (bound-lower b)) #t))
+              (drop-right rel-list (min 2 (length rel-list)))))
+   
     (hash-for-each rel-breaks (λ ([r : node/expr/relation] [bs : (Setof node/breaking/break)])
       (define rl (hash-ref relations-store r (lambda () (list))))
       (for ([b bs] #:when (and (memq (node/breaking/break-break b) '(linear plinear)) (>= (length rl) 2)))
@@ -330,7 +340,7 @@
                 ][else
                     (define break-graph (breaker-break-graph bkr))
                     (define broken-sigs (break-graph-sigs break-graph))
-                    (cond [(subset? broken-sigs sigs)
+                    (cond [(and (owners-present? rel-list) (subset? broken-sigs sigs))
                         (cons! candidates bkr)
                         (set! broken #t)
                     ][else
