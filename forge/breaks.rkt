@@ -121,7 +121,6 @@
 (define (make-exact-break relation contents [formulas : (Setof node/formula) (set)])
   (break (sbound relation contents contents) formulas))
 
-;; CLAUDE: successor pairs of a chain over atoms, in order (empty for 0 or 1 atoms)
 (: chain-tuples (-> (Listof FAtom) (Setof Tuple)))
 (define (chain-tuples atoms)
   (if (null? atoms) (set) (list->set (map (ann list (-> FAtom FAtom (Listof FAtom))) (drop-right atoms 1) (cdr atoms)))))
