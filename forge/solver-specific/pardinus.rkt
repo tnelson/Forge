@@ -41,7 +41,7 @@
 
   (pardinus-print (pardinus:print-cmd (format "(with ~a" run-name)))
   (pardinus-print
-   (pardinus:configure (format ":bitwidth ~a :solver ~a :max-solutions 1 :verbosity ~a :skolem-depth ~a :sb ~a :core-gran ~a :core-minimization ~a :log-trans ~a :no-overflow ~a ~a ~a"                               
+   (pardinus:configure (format ":bitwidth ~a :solver ~a :max-solutions 1 :verbosity ~a :skolem-depth ~a :sb ~a :core-gran ~a :core-minimization ~a :log-trans ~a :no-overflow ~a ~a ~a~a"                               
                                bitwidth 
                                solverspec
                                (get-option run-spec 'engine_verbosity) ; see the Wiki for levels
@@ -56,7 +56,9 @@
                                    "")
                                (if (equal? 'temporal (get-option run-spec 'problem_type))
                                    (format ":max-trace-length ~a" (get-option run-spec 'max_tracelength))
-                                   "")))
+                                   "")
+                               (let ([limit (get-option run-spec 'fol2bool_cache_record_limit)])
+                                 (if limit (format " :fol2bool-cache-record-limit ~a" limit) ""))))
    (pardinus:declare-univ (length all-atoms)))
 
   ; Declare ints
@@ -158,9 +160,17 @@
          [tt (assoc 'time-translation stats)]
          [ts (assoc 'time-solving stats)]
          [tcx (assoc 'time-core stats)]
-         [tcstr (if tcx (format " Core min (ms): ~a" tcx) "")])
-    (format "#vars: ~a; #primary: ~a; #clauses: ~a~nTransl (ms): ~a; Solving (ms): ~a~a"
-            vars prim clauses tt ts tcstr)))
+         [tcstr (if tcx (format " Core min (ms): ~a" tcx) "")]
+         ; Cache statistics may not be reported
+         [hits (assoc 'fol2bool-cache-hits stats)]
+         [cachestr (if hits
+                       (format "~nFOL2Bool cache: ~a; ~a; ~a; ~a" hits
+                               (assoc 'fol2bool-cache-peak-entries stats)
+                               (assoc 'fol2bool-cache-largest-record stats)
+                               (assoc 'fol2bool-cache-resets stats))
+                       "")])
+    (format "#vars: ~a; #primary: ~a; #clauses: ~a~nTransl (ms): ~a; Solving (ms): ~a~a~a"
+            vars prim clauses tt ts tcstr cachestr)))
   
 ; Print solve
 (define (get-next-kodkod-model is-running? run-name all-rels all-atoms core-map stdin stdout stderr [mode ""])

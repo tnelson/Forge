@@ -272,6 +272,7 @@
         'engine_verbosity  1
         'test_keep         'first
         'no_overflow       'false
+        'fol2bool_cache_record_limit #f
         'java_exe_location #f))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -326,6 +327,7 @@
         'engine_verbosity exact-nonnegative-integer?
         'test_keep (oneof-pred '(first last))
         'no_overflow (oneof-pred '(false true))
+        'fol2bool_cache_record_limit (lambda (x) (or (not x) (exact-positive-integer? x)))
         'java_exe_location (lambda (x) (or (equal? x #f) (string? x)))))
 
 (define option-types-names
@@ -349,6 +351,7 @@
         'engine_verbosity "non-negative integer"
         'test_keep "one of: first or last"
         'no_overflow "one of: false or true"
+        'fol2bool_cache_record_limit "positive integer"
         'java_exe_location "string"))
 
 
