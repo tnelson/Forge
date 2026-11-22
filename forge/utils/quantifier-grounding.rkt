@@ -197,8 +197,8 @@
      (node/expr/constant info arity type)]
     [(? node/expr/op? op)
      (interpret-expr-op run-or-state expr relations atom-names quantvars quantvar-types (node/expr/op-children op) bounds)]
-    [(node/expr/quantifier-var info arity sym name)  
-     (node/expr/quantifier-var info arity sym name)]
+    [(node/expr/quantifier-var info arity sym name mult)  
+     (node/expr/quantifier-var info arity sym name mult)]
     [(node/expr/comprehension info len decls form)   
      (define new-vs-and-decls
        (for/fold ([vs-and-decls (list quantvars '())])

@@ -174,19 +174,20 @@
   (define extra-r (if (member 'r atoms) empty (list (atom 'r$0))))
   (append preliminary extra-s extra-a extra-r))
 
+; We need a 2nd subject to represent a resource owner who isn't the requesting subject
+(define subject-atoms (+ (atom 's$0) (atom 's$1)))
+
 (define (make-bound atoms r)
   (cond
     ; Subject, Action, and Resource must contain specific atoms
     ; Existentially-quantified variables in rules are untyped
     [(equal? (relation-name r) "Subject")
      (list (in (atom 's$0) Subject)
-           (in Subject (+ atoms)))]
+           (in Subject subject-atoms))]
     [(equal? (relation-name r) "Action")
-     (list (in (atom 'a$0) Action)
-           (in Action (+ atoms)))]
+     (list (= Action (atom 'a$0)))]
     [(equal? (relation-name r) "Resource")
-     (list (in (atom 'r$0) Resource)
-           (in Resource (+ atoms)))]
+     (list (= Resource (atom 'r$0)))]
     ; Skolem relations:
     [(equal? (relation-name r) "reqS")     
      (list (= reqS (-> (atom 'Request) (atom 's$0))))]
@@ -200,15 +201,14 @@
      (list (= r (atom 'Request)))]
     ; Boolean fields (target sig is True)
     [(equal? (relation-name r) "training")
-     (list (in r (-> (+ atoms) (atom 'True))))]
+     (list (in r (-> subject-atoms (atom 'True))))]
     [(equal? (relation-name r) "audit")
-     (list (in r (-> (+ atoms) (atom 'True))))]
+     (list (in r (-> (atom 'r$0) (atom 'True))))]
     ; owner maps File -> Subject; Subject's upper bound is the universe atoms
     [(equal? (relation-name r) "owner")
-     (list (in r (-> (+ atoms) (+ atoms))))]
-    ; Everything else:
+     (list (in r (-> (atom 'r$0) subject-atoms)))]
     [(equal? 1 (relation-arity r))
-     (list (in r (+ atoms)))]
+     (list)]
     [(equal? 2 (relation-arity r))
      (list (in r (-> (+ atoms) (+ (atom 'True) (+ atoms)))))]
     [else

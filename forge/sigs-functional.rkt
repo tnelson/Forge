@@ -12,10 +12,11 @@
 
 (require racket/contract)
 (require racket/match)
+(require (only-in racket/string string-join))
 (require (prefix-in @ (only-in racket max min - display set +))
          (only-in racket/function thunk)
          (only-in racket/math nonnegative-integer?)
-         (only-in racket/list first second range rest empty flatten)
+         (only-in racket/list first second range rest empty flatten partition)
          (only-in racket/set list->set set->list set-union set-intersect subset? set-count)
          (only-in racket/hash hash-union))
 (require (only-in syntax/srcloc build-source-location-syntax))
@@ -30,7 +31,8 @@
 (require forge/shared
          forge/sigs-structs
          forge/evaluator
-         forge/send-to-solver)
+         forge/send-to-solver
+         (only-in forge/solver-specific/solve-cache note-solve-expectation!))
 
 (require (only-in forge/lang/alloy-syntax/parser [parse forge-lang:parse])
          (only-in forge/lang/alloy-syntax/tokenizer [make-tokenizer forge-lang:make-tokenizer]))
@@ -52,8 +54,6 @@
 (provide ;reset-run-name-history! 
          stop-solver-process!)
 
-; ; Instance analysis functions
-; (provide is-sat? is-unsat?)
 
 ; ; export AST macros and struct definitions (for matching)
 ; ; Make sure that nothing is double-provided
@@ -122,7 +122,6 @@
         #:extends (or/c Sig? #f)
         #:info (or/c nodeinfo? #f))
        Sig?)
-  ; (check-temporal-for-var is-var name)
   (define name (or raw-name (gensym 'sig)))
   
   (when (and one lone)
@@ -175,7 +174,6 @@
                sig-or-thunk))
          sigs))
 
-  ; (check-temporal-for-var is-var name)
   (Relation node-info ; info
         
             (length sigs-thunks) ; arity
@@ -224,7 +222,10 @@
 (define/contract (safe-fast-eval-exp e binding bitwidth [safe #t])
   (->* (node/expr? hash? number?) (boolean?)
        (listof (listof (or/c number? symbol?))))
-  (define result (eval-exp e binding bitwidth safe))
+  (define result
+    (parameterize ([undefined-value-message
+                    (lambda (name) (format "~a is used before it is bound in this inst. Bind ~a before this line." name name))])
+      (eval-exp e binding bitwidth safe)))
   (de-integer-atomize result))
 
 (define (safe-fast-eval-int-expr ie binding bitwidth)
@@ -255,12 +256,25 @@
 
   (when (>= (get-verbosity) VERBOSITY_HIGH)
     (printf "  do-bind: ~a~n" bind))
-  ;(when (node? bind) (printf "bind info: ~a~n" (nodeinfo-loc (node-info bind))))
 
   ; In case of error, highlight an AST node if able. Otherwise, do the best we can:
-  (define (fail msg [condition #f])    
+  (define (fail-unless msg [condition #f])    
     (unless condition            
       (raise-forge-error #:msg msg #:context bind)))  
+
+  ; Narrow the numeric scope of a given sig, based on a cardinality expression. 
+  (define (bind-card cmp inclusive?)
+    (match (node/formula/op-on-ints-children cmp)
+      [(list (node/int/op-on-exprs/card _ (list rel)) n-expr)
+       (define n (safe-fast-eval-int-expr n-expr (Bound-tbindings bound) SUFFICIENT-INT-BOUND))
+       (define-values (min-scope max-scope)
+         (if (node/formula/op-on-ints/int<? cmp)
+             (values 0 (if inclusive? n (sub1 n)))
+             (values (@max 0 (if inclusive? n (add1 n))) #f)))
+       (fail-unless (format "Cardinality bound on ~a cannot be satisfied." (relation-name rel))
+                    (or (not max-scope) (>= max-scope 0)))
+       (values (update-scope scope rel (Range min-scope max-scope) bind) bound)]
+      [_ (fail-unless "Invalid cardinality bound: expected #name on the left-hand side")]))
   
   ; Lang-specific instance checker
   (define inst-checker-hash (get-inst-checker-hash))
@@ -288,13 +302,13 @@
         
     (cond [(hash-has-key? piecewise-binds the-relation)
            (define former-pwb (hash-ref piecewise-binds the-relation))
-           (unless (equal? op (PiecewiseBound-operator former-pwb))
-             (fail (format "mixed operators not allowed in piecewise bounds; prior had ~a, got ~a"
-                           (PiecewiseBound-operator former-pwb) op)))
+           (fail-unless (format "mixed operators not allowed in piecewise bounds; prior had ~a, got ~a"
+                                (PiecewiseBound-operator former-pwb) op)
+                        (equal? op (PiecewiseBound-operator former-pwb)))
            
            ; Consistency check for this combination of atom and relation; disallow re-binding.           
-           (when (member the-atom-evaluated (PiecewiseBound-atoms former-pwb))
-             (fail (format "rebinding detected for ~a.~a; this is not allowed." the-atom the-relation)))
+           (fail-unless (format "rebinding detected for ~a.~a; this is not allowed." the-atom the-relation)
+                        (not (member the-atom-evaluated (PiecewiseBound-atoms former-pwb))))
            
            (define new-tuples (append (PiecewiseBound-tuples former-pwb) the-tuples))
            (Bound (Bound-pbindings bound) (Bound-tbindings bound)
@@ -328,49 +342,40 @@
      (match left
        [(node/int/op-on-exprs/card c-info (list left-rel))
         (let* ([exact (safe-fast-eval-int-expr right (Bound-tbindings bound) SUFFICIENT-INT-BOUND)]
-               [new-scope (if (equal? (relation-name left-rel) "Int")
+               [int? (equal? (relation-name left-rel) "Int")]
+               [new-scope (if int?
                               (update-bitwidth scope exact)
-                              (update-int-bound scope left-rel (Range exact exact)))])
-          (values new-scope bound))]
-       [_ (fail "int=")])]
+                              (update-scope scope left-rel (Range exact exact) bind))]
+               ; Later bounding-expressions are evaluated _after_ any `#Int = k` binding. 
+               [new-bound (if int?
+                              (struct-copy Bound bound
+                                           [tbindings (hash-union (Bound-tbindings bound) (int-tbindings exact)
+                                                                  #:combine (lambda (old new) new))])
+                              bound)])
+          (values new-scope new-bound))]
+       [_ (fail-unless "int=")])]
 
-    ; (<= (card rel) upper)
+    ; Non-equality cardinality bounds, e.g., `#rel <= n`.
+    ; `<=` and `>=` desugar to a disjunction of int= and either int< or int>
     [(node/formula/op-on-formulas/|| or-info
-                             (list (node/formula/op-on-ints/int< lt-info (list lt-left lt-right))
-                                   (node/formula/op-on-ints/int= eq-info (list eq-left eq-right))))
-     (unless (and (equal? lt-left eq-left) (equal? lt-right eq-right))
-       (fail "int<="))
-     (match lt-left
-       [(node/int/op-on-exprs/card c-info (list left-rel))
-        (let* ([upper-val (safe-fast-eval-int-expr lt-right (Bound-tbindings bound) SUFFICIENT-INT-BOUND)]
-               [new-scope (update-int-bound scope left-rel (Range 0 upper-val))])
-          (values new-scope bound))]
-       [_ (fail "int<=")])]
-
-    ; (<= lower (card-rel))
-    [(node/formula/op-on-formulas/|| or-info
-                             (list (node/formula/op-on-ints/int< lt-info (list lt-left lt-right))
-                                   (node/formula/op-on-ints/int= eq-info (list eq-left eq-right))))
-     (unless (and (equal? lt-left eq-left) (equal? lt-right eq-right))
-       (fail "int>="))
-     (match lt-right
-       [(node/int/op-on-exprs/card c-info (list right-rel))
-        (let* ([lower-val (safe-fast-eval-int-expr lt-left (Bound-tbindings bound) SUFFICIENT-INT-BOUND)]
-               [new-scope (update-int-bound scope right-rel (Range lower-val 0))])
-          (values new-scope bound))]
-       [_ (fail "int>=")])]
+                             (list (and cmp (or (? node/formula/op-on-ints/int<?)
+                                                (? node/formula/op-on-ints/int>?)))
+                                   (node/formula/op-on-ints/int= eq-info eq-args)))
+     (fail-unless "Invalid cardinality bound"
+                  (equal? (node/formula/op-on-ints-children cmp) eq-args))
+     (bind-card cmp #t)]
+    [(or (? node/formula/op-on-ints/int<?) (? node/formula/op-on-ints/int>?))
+     (bind-card bind #f)]
 
     ; Strategies
     [(node/breaking/op/is info (list left right))
      (define breaker
        (match right
          [(node/breaking/break _ breaker) breaker]
-         [_ (fail "is")]))
+         [_ (fail-unless "is")]))
      (match left
        [(? node/expr/relation?) (break-rel left right)]
-       [(node/expr/op-on-exprs/~ info arity (list left-rel))
-        (break-rel left-rel (get-co right))]
-       [_ (fail "is")])
+       [_ (fail-unless "is")])
      (values scope bound)]
 
     ; Other instances (which may add new scope, bound, piecewise-bound information)
@@ -396,7 +401,7 @@
               (raise (error (format "Piecewise bound for ~a: piecewise bounds may only be used for fields, not sigs." the-relation))))
             (values scope (update-piecewise-binds '= the-relation the-atom right))]
            [else
-            (fail "rel=")])]     
+            (fail-unless "rel=")])]     
 
     ; rel in expr
     ; expr in rel
@@ -438,24 +443,42 @@
           (raise (error (format "Piecewise bound for ~a: piecewise bounds may only be used for fields, not sigs." the-relation))))
         (values scope (update-piecewise-binds 'ni the-relation the-atom left))]
        ; anything else is unexpected
-       [else (fail "rel in/ni")])]    
+       [else (fail-unless "rel in/ni")])]    
     
-    [_ (fail "Invalid binding expression")]))
+    [_ (fail-unless "Invalid binding expression")]))
 
 ; Create a new Inst struct; fold over all bind declarations in "binds".
 (define/contract (make-inst binds)
   (-> (listof (or/c node/formula? node/breaking/op? Inst?))
       Inst?)
   
+  ; Apply `#Int = k` before any other binding expression.
+  (define (bitwidth-bind? bind)
+    (match bind
+      [(node/formula/op-on-ints/int= _ (list (node/int/op-on-exprs/card _ (list rel)) _))
+       (equal? (relation-name rel) "Int")]
+      [_ #f]))
+
+  (define-values (bitwidth-binds other-binds) (partition bitwidth-bind? binds))
   (define (inst-func scope bound)
     (define-values (new-scope new-bound) 
       (for/fold ([scope scope] [bound bound])
-                ([bind binds])
-        ;(printf "*** In inst-func do-bind ~a~n" bind)
+                ([bind (append bitwidth-binds other-binds)])
         (do-bind bind scope bound)))
     (values new-scope new-bound)) 
 
   (Inst inst-func))
+
+; Bindings for Int and succ(essor) at a given bitwidth
+(define (int-tbindings bitwidth)
+  ; Positive maxint: 2^(bw-1) - 1
+  ; Negative minint: 2^(bw-1)
+  ; Keep in mind range is *exclusive* of upper, hence adding 1 back.
+  (define max-int (sub1 (expt 2 (sub1 bitwidth))))
+  (define min-int (@- (expt 2 (sub1 bitwidth))))
+  (define ints (map int-atom (range min-int (@+ 1 max-int))))
+  (hash Int (map list ints)
+        succ (map list (reverse (rest (reverse ints))) (rest ints))))
 
 (define (update-bitwidth base-scope bitwidth)
   (-> Scope? nonnegative-integer?
@@ -463,17 +486,70 @@
   (struct-copy Scope base-scope
                [bitwidth bitwidth]))
 
-(define (update-scope base-scope sig lower upper)
-  (-> Scope? Sig? nonnegative-integer? nonnegative-integer?
-      Scope?)
-  (define old-sig-scopes (Scope-sig-scopes base-scope))
+; Alloy's policy for abstract sigs without an explicit scope, when all of its children 
+; have one. Proceeds recursively, deriving child scopes as needed/possible.  
+(define (derive-abstract-scopes scope sigs context)
+  (define (max-scope-of sc a-sig)
+    (define r (hash-ref (Scope-sig-scopes sc) (Sig-name a-sig) #f))
+    (and r (Range-upper r)))
+  (define (children-of a-sig)
+    (filter (lambda (c) (equal? (Sig-extends c) a-sig)) sigs))
 
-  (match-define (Range old-lower old-upper) (hash-ref old-sig-scopes (Sig-name sig) (Range lower upper)))
-  (define new-sig-scope (Range (@max old-lower lower) (@min old-upper upper)))
+   ; Keeps any min from an inst cardinality.
+  (define (set-max sc a-sig n)
+    (define prior (hash-ref (Scope-sig-scopes sc) (Sig-name a-sig) #f))
+    (define min-scope (if prior (Range-lower prior) 0))
+    (when (< n min-scope)
+      (raise-forge-error
+       #:msg (format (string-append "Bound conflict: numeric max scope on ~a was"
+                                    " less than numeric min scope (~a vs. ~a).")
+                     (Sig-name a-sig) n min-scope)
+       #:context context))
+    (struct-copy Scope sc
+                 [sig-scopes (hash-set (Scope-sig-scopes sc) (Sig-name a-sig) (Range min-scope n))]))
+  (define next
+    (for/fold ([sc scope])
+              ([a-sig sigs]
+               #:when (and (Sig-abstract a-sig)
+                           (not (null? (children-of a-sig)))))
+      (define kids (children-of a-sig))
+      (define parent-max (max-scope-of sc a-sig))
+      (define unscoped-kids (filter (lambda (c) (not (max-scope-of sc c))) kids))
+      (define scoped-total (apply @+ (filter values (map (lambda (c) (max-scope-of sc c)) kids))))
+      (cond [(and (not parent-max) (null? unscoped-kids))
+             (set-max sc a-sig scoped-total)]
+            ; An abstract sig with an explicit scope, and exactly one unscoped child, 
+            ; "gives" that child its max minus its siblings'.
+            [(and parent-max (pair? unscoped-kids) (null? (cdr unscoped-kids)))
+             (set-max sc (car unscoped-kids) (@max 0 (@- parent-max scoped-total)))]
+            [else sc])))
+  (if (equal? next scope)
+      scope
+      (derive-abstract-scopes next sigs context)))
 
-  (define new-sig-scopes (hash-set old-sig-scopes (Sig-name sig) new-sig-scope))
-  (struct-copy Scope base-scope
-               [sig-scopes new-sig-scopes]))
+; update-scope :: Scope, node/expr/relation, Range, (U node syntax) -> Scope
+; Updates the numeric Scope (min and max size) for a given sig, combining the new (given) 
+; scope declaration with any prior declarations. If `given` contains a min-scope only, 
+; the prior max-scope is kept. 
+(define (update-scope scope sig given context)
+  (define name (string->symbol (relation-name sig)))
+  (define prior (hash-ref (Scope-sig-scopes scope) name #f))
+  (define min-scope (@max (Range-lower given) (if prior (Range-lower prior) 0)))
+  (define prior-max (and prior (Range-upper prior)))
+  
+  ; With no max given or prior, the max stays #f, to be set later.
+  (define max-scope
+    (if (and prior-max (Range-upper given))
+        (@min prior-max (Range-upper given))
+        (or prior-max (Range-upper given))))
+  (when (and max-scope (< max-scope min-scope))
+    (raise-forge-error
+     #:msg (format (string-append "Bound conflict: numeric max scope on ~a was"
+                                  " less than numeric min scope (~a vs. ~a).")
+                   name max-scope min-scope)
+     #:context context))
+  (struct-copy Scope scope
+               [sig-scopes (hash-set (Scope-sig-scopes scope) name (Range min-scope max-scope))]))
 
 ; used by make-run and make-check and make-test
 ; so that they can call run-from-state and check-from-state and test-from-state
@@ -519,6 +595,7 @@
 (define (run-from-state state #:name [name 'unnamed-run]
                         #:preds [preds (list)]
                         #:scope [scope-input (list)]
+                        #:default-scope [default-scope-input #f]
                         #:bounds [bounds-input (make-inst (list))] 
                         #:solver [solver #f]
                         #:backend [backend #f]
@@ -529,6 +606,7 @@
         #:preds (listof node/formula)
         #:scope (or/c Scope? (listof (or/c (list/c Sig? nonnegative-integer?)
                                            (list/c Sig? nonnegative-integer? nonnegative-integer?))))
+        #:default-scope (or/c nonnegative-integer? #f)
         #:bounds (or/c Inst? (listof (or/c Inst? node/formula)))
         #:solver (or/c symbol? #f)
         #:backend (or/c symbol? #f)
@@ -536,48 +614,47 @@
         #:command syntax?)
        Run?)  
   
+  ; Avoid breaker state being leaked between consecutive runs when one fails 
+  ; before send-to-solver is called. 
+  (clear-breaker-state)
+  ; For sigs without a scope. If #f, just use DEFAULT-SIG-SCOPE. Otherwise, supports `for N`. 
+  (define default-range (and default-scope-input (Range 0 default-scope-input)))
+
   (define/contract base-scope Scope?
     (cond
-      [(Scope? scope-input) scope-input]
+      [(Scope? scope-input)
+       (if default-range
+           (struct-copy Scope scope-input [default-scope default-range])
+           scope-input)]
       [(list? scope-input)
-       (for/fold ([scope (Scope #f #f (hash))])
+       (for/fold ([scope (Scope default-range #f (hash))])
                  ([triple scope-input])
          (match triple
            [(list sig upper)
             (if (equal? sig Int)
                 (update-bitwidth scope upper)
-                (update-scope scope sig 0 upper))]
+                (update-scope scope sig (Range 0 upper) command))]
            [(list sig lower upper)
             (if (equal? sig Int)
                 (update-bitwidth scope upper)
-                (update-scope scope sig lower upper))]
+                (update-scope scope sig (Range lower upper) command))]
            [_ (raise (format "Invalid scope: ~a" triple))]))]))
 
   (define/contract scope-with-ones Scope?
     (for/fold ([scope base-scope])
               ([sig (get-sigs state)])
       (cond [(Sig-one sig)
-             (update-scope scope sig 1 1)]
+             (update-scope scope sig (Range 1 1) sig)]
             [(Sig-lone sig)
-             (update-scope scope sig 0 1)]
+             (update-scope scope sig (Range 0 1) sig)]
             [else
              scope])))
 
   (define/contract default-bounds Bound?
-    (let* ([bitwidth (Scope-bitwidth scope-with-ones)]
-           ; Positive maxint: 2^(bw-1) - 1
-           ; Negative minint: 2^(bw-1)
-           ; Keep in mind range is *exclusive* of upper, hence adding 1 back.
-           [max-int (sub1 (expt 2 (sub1 (or bitwidth DEFAULT-BITWIDTH))))]
-           [min-int (@- (expt 2 (sub1 (or bitwidth DEFAULT-BITWIDTH))))]
-           [ints (map int-atom (range min-int (@+ 1 max-int)))]
-           [succs (map list (reverse (rest (reverse ints)))
-                       (rest ints))])
-      (Bound (hash)
-             (hash Int (map list ints)
-                   succ succs)
-             (hash)
-             (hash))))
+    (Bound (hash)
+           (int-tbindings (or (Scope-bitwidth scope-with-ones) DEFAULT-BITWIDTH))
+           (hash)
+           (hash)))
 
   (define/contract wrapped-bounds-inst Inst?
     (if (Inst? bounds-input)
@@ -585,8 +662,34 @@
         (make-inst (flatten bounds-input))))
   
   ; Invoking the Inst func folds over all involved `inst` declarations to produce a final triplet.
-  (define-values (scope bounds) 
+  (define-values (scope-before-derivation bounds) 
     ((Inst-func wrapped-bounds-inst) scope-with-ones default-bounds))
+  (define scope (derive-abstract-scopes scope-before-derivation (get-sigs state) command))
+
+  ; If a command gives scopes for some sigs, but fails to provide one for a top-level sig, 
+  ; Forge uses the default size for the top-level sig. Alloy would throw an error here, 
+  ; but for now Forge will produce a warning instead. 
+  (define command-scopes-sigs?
+    (and (list? scope-input)
+         (ormap (lambda (entry) (not (equal? (first entry) Int))) scope-input)))
+  (when (and command-scopes-sigs? (not default-scope-input))
+    (define defaulted-names
+      (for/list ([a-sig (get-sigs state)]
+                 #:unless (equal? a-sig Int)
+                 #:unless (Sig-extends a-sig)
+                 #:unless (hash-ref (Scope-sig-scopes scope) (Sig-name a-sig) #f)
+                 #:unless (let ([b (hash-ref (Bound-pbindings bounds) a-sig #f)])
+                            (and b (sbound-upper b))))
+        (Sig-name a-sig)))
+    (unless (null? defaulted-names)
+      (raise-forge-warning
+       #:msg (format (string-append "No scope was given for top-level sig(s) ~a, so the default (~a) is used. "
+                                    "When a command gives scopes, give every top-level sig a scope, e.g., `for ~a but ...`. "
+                                    "This will become an error in a future version.")
+                     (string-join (map symbol->string defaulted-names) ", ")
+                     (Range-upper DEFAULT-SIG-SCOPE)
+                     (Range-upper DEFAULT-SIG-SCOPE))
+       #:context command)))
 
   ; Piecewise bounds must be resolved. Along the way, confirm that if one relation is bound
   ; piecewise (incomplete), it cannot be bound complete. E.g., we cannot mix "`Alice.father = ..."
@@ -675,7 +778,6 @@
             (Target-distance target))]
           [else
            target]))
-  ;(printf "cleaned-target: ~a~n" cleaned-target)
   
   (define spec (Run-spec state preds scope bounds-with-piecewise-lower cleaned-target))        
   (define-values (result atoms server-ports kodkod-currents kodkod-bounds) 
@@ -805,6 +907,8 @@
         #:target (or/c Target? #f)
         #:command syntax?)
        void?)
+  ; Start by registering the expectation (in case the solver-cache is being used.)
+  (note-solve-expectation! name expected)
   (cond
     [(equal? expected 'checked)
      (let* ([test-check (check-from-state state
@@ -831,16 +935,19 @@
                                       #:backend backend
                                       #:target target
                                       #:command command)]
-            [first-instance (tree:get-value (Run-result test-run))])
-       (if (equal? (if (Sat? first-instance) 'sat 'unsat) expected)
+            [first-instance (tree:get-value (Run-result test-run))]
+            [actual (cond [(Sat? first-instance) 'sat]
+                          [(Unsat? first-instance) 'unsat]
+                          [else 'unknown])])
+       (if (equal? actual expected)
            (close-run test-run)
            (raise (format "Failed test ~a. Expected ~a, got ~a.~a"
-                          name expected (if (Sat? first-instance) 'sat 'unsat)
-                          (if (Sat? first-instance)
-                              (format " Found instance ~a" first-instance)
-                              (if (Unsat-core first-instance)
-                                  (format " Core: ~a" (Unsat-core first-instance))
-                                  ""))))))]
+                          name expected actual
+                          (cond [(Sat? first-instance)
+                                 (format " Found instance ~a" first-instance)]
+                                [(and (Unsat? first-instance) (Unsat-core first-instance))
+                                 (format " Core: ~a" (Unsat-core first-instance))]
+                                [else ""])))))]
     [else (raise (format "Illegal argument to test. Received ~a, expected sat, unsat, or checked."
                          expected))]))
 
@@ -993,25 +1100,6 @@
   (struct-copy Scope scope
                [bitwidth n]))
 
-; update-int-bound :: Scope, node/expr/relation, Range -> Scope
-; Updates the scope (range) for a given sig in scope.
-(define (update-int-bound scope rel given-scope)
-  (define name (string->symbol (relation-name rel)))
-  (define old-scope (get-scope scope name))
-
-  (define lower (@max (Range-lower given-scope) (Range-lower old-scope)))
-  (define upper (@min (Range-upper given-scope) (Range-upper old-scope)))
-  (when (< upper lower)
-    (raise (format (string-append "Bound conflict: numeric upper bound on ~a was"
-                                  " less than numeric lower bound (~a vs. ~a).") 
-                   rel upper lower)))    
-
-  (define new-scope (Range lower upper))
-  (define new-sig-scopes (hash-set (Scope-sig-scopes scope) name new-scope))
-
-  (struct-copy Scope scope
-               [sig-scopes new-sig-scopes]))
-
 ; Produce a single AST node to blame for a given relation's bound, or #f if none available
 (define (get-blame-node bound the-rel)
   (define result (hash-ref (Bound-orig-nodes bound) the-rel #f))
@@ -1098,18 +1186,6 @@
        (hash-set options 'solver (if (and (string? value) original-path)
                              (path->string (build-path original-path (string->path value)))
                              value))]
-      [(equal? option 'min_tracelength)
-       (let ([max-trace-length (get-option state 'max_tracelength)])
-         (if (> value max-trace-length)
-             (raise-user-error (format "Cannot set min_tracelength to ~a because min_tracelength cannot be greater than max_tracelength. Current max_tracelength is ~a."
-                                       value max-trace-length))
-             (hash-set options option value)))]
-      [(equal? option 'max_tracelength)
-       (let ([min-trace-length (get-option state 'min_tracelength)])
-         (if (< value min-trace-length)
-             (raise-user-error (format "Cannot set max_tracelength to ~a because max_tracelength cannot be less than min_tracelength. Current min_tracelength is ~a."
-                                       value min-trace-length))
-             (hash-set options option value)))]
       [(equal? option 'run_sterling)
        (hash-set options 'run_sterling (cond
                            [(and (string? value) original-path)

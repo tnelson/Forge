@@ -41,6 +41,9 @@ forge/e2e/node_modules/
 forge/e2e/playwright-report/
 forge/e2e/test-results/
 
+# Temporary files for development
+temp/
+
 # Local agent state
 **/.claude
 # Ephemeral agent-generated files

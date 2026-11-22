@@ -156,6 +156,12 @@
     (list "fun-param-shadows-pred.frg" #rx"Parameter 'helper' in function 'shadowsPred' shadows an existing predicate")
     (list "fun-param-shadows-fun.frg" #rx"Parameter 'getP' in function 'shadowsFun' shadows an existing function")
 
+    (list "default-scope-raised-bounds.frg" #rx"Sig P must contain at least 3 atoms \\(children A, B, C need 1, 1, 1\\), so")
+    (list "default-scope-raised-inst.frg" #rx"Sig A must contain at least 6 atoms, so")
+    (list "test-unreferenced-pred.frg" #rx"Test does not reference p")
+    (list "default-scope-raised-inst-child.frg" #rx"Sig P must contain at least 5 atoms \\(child C needs 5\\), so")
+    (list "missing-scope-warning.frg" #rx"No scope was given for top-level sig\\(s\\) B, P, so the default \\(4\\) is used")
+
     ;;; And these tests ensure that you cannot have arbitrary expressions on the RHS of assertions
     (list "exp-on-rhs-assert.frg" #rx"parsing error")
     (list "exp-on-rhs-quantified-assert.frg" #rx"parsing error")
@@ -225,9 +231,12 @@
     ;; Bad option names
     (list "bad_option_name.frg" #rx"No such option")
     ;; Bad option types
-    (list "bad_option_type.frg" #rx"requires non-negative integer")
-    ;; Bad enum member (checked via option types)
+    (list "bad_option_type.frg" #rx"requires an integer from 0 to 2")
+    ;; Bad enum member 
     (list "bad_option_enum.frg" #rx"requires one of")
+    (list "quant-over-set.frg" #rx"quant-over-set.frg:7:10.*Unsupported use of `set` in the declaration of X.*effectively existential")
+    (list "paren-application.frg" #rx"paren-application.frg:5:31.*use square brackets: p\\[x\\], not p\\(x\\)")
+    (list "bitwidth-overlap-count.frg" #rx"Upper bound too large for given bit width; Sig: Q, Upper-bound: 9, Max-int: 7. Try a larger bit width")
   ))
 
 

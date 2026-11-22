@@ -7,9 +7,39 @@
 (require (only-in racket curry add-between))
 (require "native-dir.rkt")
 
-(provide pardinus-initializer server%)
+(provide pardinus-initializer server% native-glucose-available? predict-native-glucose-available?)
+
+; Helper box for resolving the "default" solver
+(define native-glucose-present (box #f))
+(define (native-glucose-available?) (unbox native-glucose-present))
+
+(define (glucose-lib-name os)
+  (case os
+    [(macosx) "libglucose.dylib"]
+    [(windows) "glucose.dll"]
+    [else "libglucose.so"]))
 
 (define-runtime-path pardinus (build-path ".."))
+
+; Returns the native-library directory information for the JVM along with any 
+; architecture information (if provided by Java).
+(define (native-dir-for-probe probe-output)
+  (define cpu-choice (resolve-cpu (java-os-arch probe-output) (system-type 'arch)))
+  (define native-subdir (native-subdir-name (system-type 'os*) (car cpu-choice)))
+  (values (and native-subdir (build-path pardinus "jar" "native" native-subdir))
+          native-subdir
+          cpu-choice))
+
+(define (glucose-in? native-dir)
+  (and native-dir (file-exists? (build-path native-dir (glucose-lib-name (system-type 'os*)))) #t))
+
+; Is native Glucose available? This is computed without starting the server, so it's 
+; likely an over-approximation.
+(define (predict-native-glucose-available? java-exe)
+  (define java (find-java-exe java-exe))
+  (and java (file-exists? java)
+       (let-values ([(native-dir native-subdir cpu-choice) (native-dir-for-probe (java-probe java))])
+         (glucose-in? native-dir))))
 
 (define (pardinus-initializer solver-type solver-subtype java-exe)
   (unless (member solver-type '(incremental stepper))
@@ -20,9 +50,7 @@
                     (filter (curry regexp-match #rx".+\\.jar")
                             (directory-list pardinus/jar)))]
          [windows? (equal? (system-type) 'windows)]
-         [java (if (and java-exe (> (string-length java-exe) 0))
-                   (build-path java-exe)
-                   (find-executable-path (if windows? "java.exe" "java")))]
+         [java (find-java-exe java-exe)]
          [path-separator (if windows? ";" ":")]
          [cp (foldl string-append "" (add-between (map path->string jars) path-separator))]
          [error-out (build-path (find-system-path 'home-dir) "forge-pardinus-error-output.txt")])
@@ -41,9 +69,8 @@
     ; Ask the JVM which architecture it's running on. Fall back to Racket's judgement if necessary.
     (define java-probe-output (java-probe java))
     (define java-arch-name (java-os-arch java-probe-output))
-    (define cpu-choice (resolve-cpu java-arch-name (system-type 'arch)))
-    (define native-subdir (native-subdir-name (system-type 'os*) (car cpu-choice)))
-    (define native-dir (and native-subdir (build-path pardinus/jar "native" native-subdir)))
+    (define-values (native-dir native-subdir cpu-choice) (native-dir-for-probe java-probe-output))
+    (set-box! native-glucose-present (glucose-in? native-dir))
     
     ; Even if there are no native libraries available, Forge can run via SAT4j.
     (define lib-path-args

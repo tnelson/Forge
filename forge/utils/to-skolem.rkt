@@ -16,18 +16,10 @@
 
 (provide interpret-formula skolemize-formula-helper)
 
-; Context for this recursive descent, with all arguments. 
-;(struct context (run-spec total-bounds formula relations atom-names
-;                          quantvars quantvar-types tag-with-spacer))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; Boolean formulas
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; (define (create-run-with-bounds run-statement new-bounds)
-;;   (Run (Run-name run-statement) (Run-command run-statement) (Run-run-spec run-statement) 
-;;                          (Run-result run-statement) (Run-server-ports run-statement)
-;;                         (Run-atoms run-statement) (Run-kodkod-currents run-statement) new-bounds
-;;                         (Run-last-sterling-instance run-statement)))
 
 (define (find-upper-bound kodkod-bounds type)
   (for/or ([bound kodkod-bounds])
@@ -85,7 +77,6 @@
 
   ; TODO support multiple variables in one decl
                              
-    ; (define skolem-relation (make-relation 'temp-name (map (lambda (s) (thunk s)) quantvar-types)))
     ; 3. fetch the upper bounds and the product them
     (define kodkod-bounds total-bounds)
 
@@ -114,20 +105,17 @@
     ; ...because cartesian-product can also take a single list as its argument.
     ; Fortunately, if arity = 1, then we don't need to do the cartesian product at all.
   
-    ;(define skolem-upper-bound (apply cartesian-product (map flatten upper-bound-list)))
     (define skolem-upper-bound
       (if (empty? quantvar-types)
           ; only one type
           (first upper-bound-list)
           ; otherwise, build product
           (apply cartesian-product (map (lambda (sublist) (apply append sublist)) upper-bound-list))))
-    ;(printf "~nskolem-upper-bound: ~a~n" skolem-upper-bound)
   
     ; 4. add that new relation to the bounds
     (define skolem-bounds (make-bound skolem-relation '() skolem-upper-bound))
     ; Skolem bounds _at end_, so that CVC5 conversion doesn't need to hoist bounds for sigs")
     (define new-bounds (append total-bounds (list skolem-bounds)))
-    ;(define new-run (create-run-with-bounds run-spec new-bounds))
 
   ; 4.5: build the target to replace and the value to replace it with   
     (define target (car (first decls)))
@@ -155,11 +143,6 @@
 
 (define current-bounds '())
 
-; Public wrapper for the recursive descent. 
-;(define (skolemize run-spec total-bounds formula relations atom-names
-;                   quantvars quantvar-types #:tag-with-spacer [tag-with-spacer #f])
-;  (interpret-formula (context run-spec total-bounds formula relations atom-names
-;                              quantvars quantvar-types tag-with-spacer)))
 
 
 (define (skolemize-formula-decl-helper run-spec new-inner-bounds formula relations atom-names quantvars quantvar-types info
@@ -325,8 +308,8 @@
      (node/expr/constant info arity type)]
     [(? node/expr/op? op)
      (interpret-expr-op run-spec total-bounds expr relations atom-names quantvars quantvar-types (node/expr/op-children op) #:tag-with-spacer tag-with-spacer)]
-    [(node/expr/quantifier-var info arity sym name)  
-     (node/expr/quantifier-var info arity sym name)]
+    [(node/expr/quantifier-var info arity sym name mult)  
+     (node/expr/quantifier-var info arity sym name mult)]
     [(node/expr/comprehension info len decls form)   
      (define new-vs-and-decls
        (for/fold ([vs-and-decls (list quantvars '())])

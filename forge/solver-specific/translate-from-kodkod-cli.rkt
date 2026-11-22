@@ -31,30 +31,7 @@ Note: sometimes the engine manufactures NEW atoms, as Pardinus does in temporal 
 (define (translate-kodkod-cli-relation univ relation)
   (map (curry translate-kodkod-cli-tuple univ) relation))
 
-;(define (get-deepest-container sig container))
 
-#|
-(define (get-proper-name id relation mapping parents indices)
-  (if (member id (hash-ref mapping relation))
-      (if (hash-has-key? parents relation)
-          (let ()
-            (define p-name #f)
-            (for ([child (hash-ref parents relation)])
-              (let ([c-name (get-proper-name id relation mapping parents indices)])
-                (when c-name (set! p-name c-name))))
-            (if p-name
-                p-name
-                (let ([index (hash-ref indices relation)])
-                  (hash-set! indices relation (+ 1 index))
-                  (format "~a~a" (relation-name relation) index))))
-          (let ([index (hash-ref indices relation)])
-            (hash-set! indices relation (+ 1 index))
-            (format "~a~a" (relation-name relation) index)))
-      #f))
-
-(define (clean-names univ mapping parents)
-  (define indices (make-hash)))
-|#
 
 (define (process-core core-map data)
   (map (lambda (core-fmla) (process-core-formula core-fmla core-map)) data))
@@ -89,34 +66,6 @@ This function just recreates the model, but using names instead of numbers.
         [(equal? 'no-more-instances flag)
          (Unsat #f stats 'no-more-instances)]
         [(equal? 'sat flag)
-         #|
-         (define translated-model (make-hash))
-         (define initial-mapping (make-hash))
-         (for ([relation-num (hash-keys data)])
-           (hash-set! initial-mapping
-                      (list-ref relation-names (id-to-index relation-num))
-                      (translate-kodkod-cli-relation univ (hash-ref data relation-num) (id-to-index relation-num) parents)))
-
-
-         (for ([relation-num (hash-keys data)])
-           (cond [(id-to-index relation-num)
-                  (let ([idx (id-to-index relation-num)])
-                    (unless (string=? "succ" (relation-name (list-ref relation-names idx)))
-                      ; A declared relation
-                      (hash-set! translated-model
-                             (list-ref relation-names (id-to-index relation-num))
-                             (translate-kodkod-cli-relation inty-univ (hash-ref data relation-num)))))]
-                 [else
-                  ; Likely a Skolem relation. Infer arity from contents                  
-                  (define tuples (hash-ref data relation-num))
-                  (define arity (if (empty? tuples) 0 (length (first tuples))))
-                  (define arity-types (build-list arity (lambda (x) "univ")))
-                  (define translated-tuples (translate-kodkod-cli-relation inty-univ (hash-ref data relation-num)))
-                  (printf "Skolem ~a: ~a~n" relation-num translated-tuples)
-                  (hash-set! translated-model
-                             (rel arity-types "univ" (symbol->string relation-num))
-                             translated-tuples)]))|#
-         ;(printf "Translated model: ~a~n" translated-model)
          
          (define metadata (fifth model))
 

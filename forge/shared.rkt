@@ -43,7 +43,7 @@
          VERBOSITY_LOW VERBOSITY_STERLING VERBOSITY_HIGH
          VERBOSITY_DEBUG VERBOSITY_LASTCHECK get-temp-dir)
 (provide forge-version forge-git-info instance-diff curr-forge-version remove-newlines)
-(provide port-echo java>=1.9? java-version>=1.9? java-probe do-time format-tuple-set)
+(provide port-echo java>=1.9? java-version>=1.9? java-probe find-java-exe do-time format-tuple-set)
 
 ; Level of output when running specs
 (define VERBOSITY_SCRIPT 0) ; for test scripts
@@ -155,10 +155,24 @@
   (define version-str (shell java-exe "-version"))
   (java-version>=1.9? version-str java-exe))
 
-; Launch the JVM and ask two questions: which version, and which architecture.
+; Launch the JVM and extract reported version and architecture. 
+; Cache the response to avoid asking separately for each test run.
+(: java-probe-memo (Mutable-HashTable String String))
+(define java-probe-memo (make-hash))
 (: java-probe (-> Path-String String))
 (define (java-probe java-exe)
-  (shell java-exe (list "-XshowSettings:properties" "-version")))
+  (define k (if (path? java-exe) (path->string java-exe) java-exe))
+  (or (hash-ref java-probe-memo k #f)
+      (let ([out (shell java-exe (list "-XshowSettings:properties" "-version"))])
+        (hash-set! java-probe-memo k out)
+        out)))
+
+; The Java executable to run Pardinus. 
+(: find-java-exe (-> (U False Path-String) (U False Path)))
+(define (find-java-exe java-exe)
+  (cond [(path? java-exe) java-exe]
+        [(and java-exe (> (string-length java-exe) 0)) (string->path java-exe)]
+        [else (find-executable-path (if (equal? (system-type) 'windows) "java.exe" "java"))]))
 
 (: java-version>=1.9? (-> String (U False Path-String) Boolean))
 (define (java-version>=1.9? version-str java-exe)
@@ -309,7 +323,6 @@
            (let loop ()
              (match (sync receiver)
                [(vector level msg data event-name)
-                ;(printf "Log received: ~a~n" data)
                 (fprintf logger-port-temp "[~a] ~a: ~a\n" level event-name data)
                 (flush-output logger-port-temp)])
              (loop)))))
@@ -324,6 +337,5 @@
 (: log-forge-event (-> Log-Level Symbol String Any Void))
 (define (log-forge-event level topic message datum)
   (when (log-to-file-enabled?)
-    ;(printf "Log sending: ~a~n" datum)
     ; logger level topic message data prefix-message
     (log-message forge-logger-logger level topic message datum #t)))

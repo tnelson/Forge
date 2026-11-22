@@ -170,9 +170,9 @@ inst exactInst {
 
     OneSig = `OneSig1
 
-    AbstractExtension1 = `Atom1 + `Atom2
-    AbstractExtension2 = `Atom3 + `Atom4
-    Abstract = `Atom1 + `Atom2 + `Atom3 + `Atom4
+    AbstractExtension1 = `Atom4 + `Atom5
+    AbstractExtension2 = `Atom6 + `Atom7
+    Abstract = `Atom4 + `Atom5 + `Atom6 + `Atom7
 }
 
 test expect ExactlyKeyword {

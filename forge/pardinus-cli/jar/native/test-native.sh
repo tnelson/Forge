@@ -70,3 +70,28 @@ echo ""
 echo "=== JVM solve tests ($NAME) ==="
 "$JAVAC_BIN" -cp "$CP" -d "$(to_java_path "$CLASS_DIR")" "$(to_java_path "$HERE/NativeSolverTest.java")"
 "$JAVA_BIN" -Djava.library.path="$(to_java_path "$LIBS")" -cp "$CP$SEP$(to_java_path "$CLASS_DIR")" NativeSolverTest
+
+# minisatp writes a proof log to a temporary file. This test kills the JVM and 
+# confirms that the file is still deleted.
+echo ""
+echo "=== MiniSatProver temp files ($NAME) ==="
+PROBE="$(mktemp -d "${TMPDIR:-/tmp}/forge-native-probe.XXXXXX")"
+trap 'rm -rf "$CLASS_DIR" "$PROBE"' EXIT
+#  -XX:-UsePerfData stops the JVM creating a file in temp folder that interferes with test 
+# exec to make the probe's PID ($!) the JVM itself
+run_probe() { TMPDIR="$PROBE" TMP="$(to_java_path "$PROBE")" TEMP="$(to_java_path "$PROBE")" \
+  exec "$JAVA_BIN" -XX:-UsePerfData -Djava.library.path="$(to_java_path "$LIBS")" -cp "$CP$SEP$(to_java_path "$CLASS_DIR")" NativeSolverTest "$@"; }
+(run_probe) > /dev/null
+[ -z "$(ls -A "$PROBE")" ] || die "MiniSatProver left temp files after a normal exit: $(ls "$PROBE")"
+run_probe --hold-prover > "$PROBE.out" 2>&1 &
+PID=$!
+for _ in $(seq 1 300); do grep -q READY "$PROBE.out" 2>/dev/null && break; sleep 0.1; done
+grep -q READY "$PROBE.out" || die "prover did not start: $(cat "$PROBE.out")"
+case "$(uname -s)" in
+  MINGW*|MSYS*|CYGWIN*) taskkill //F //PID "$(cat /proc/$PID/winpid)" > /dev/null ;;  # TerminateProcess
+  *) kill -9 "$PID" ;;
+esac
+wait "$PID" 2>/dev/null || true
+rm -f "$PROBE.out"
+[ -z "$(ls -A "$PROBE")" ] || die "MiniSatProver left temp files after a forced kill: $(ls "$PROBE")"
+echo "  no temp files left after a normal exit or a forced kill"

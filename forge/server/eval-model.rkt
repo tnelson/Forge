@@ -8,17 +8,21 @@
          racket/hash
          racket/struct
          syntax/srcloc
-         (only-in racket range take first second rest flatten empty remove-duplicates string-join 
+         (only-in racket range take first second rest flatten empty remove-duplicates string-join append-map
                          empty? set->list list->set set-subtract set-intersect))
 (require (only-in racket/base [abs racket-abs]))
 
 (require forge/shared
          (prefix-in ast: forge/lang/ast))
 
-(provide eval-exp eval-unknown eval-int-expr model->binding)
+(provide eval-exp eval-unknown eval-int-expr model->binding undefined-value-message)
 (provide int-atom int-atom->string int-atom? int-atom-n ->string)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+; Generic error message for an expression that doesn't denote a value. 
+(define undefined-value-message
+  (make-parameter (lambda (name) (format "~a has no value in this context." name))))
 
 ; Separate structure for binding int atoms so they don't collide with int values
 ; This is important for debugging via this library, since "5" may be either an
@@ -96,11 +100,14 @@
                    ; Conversion from int values
                    [(ast:node/expr/op-on-ints/sing _ _ `(,ix1))
                     (int-atom (eval-int-expr ix1 bind bitwidth))]
+                   
                    ; Binary set operations
 
-                   ; Union should support n-ary
+                   ; Union should support n-ary. But flatten nested unions, so we only 
+                   ; sort and remove-duplicates here.
                    [(ast:node/expr/op-on-exprs/+ _ _ (list exp1 exps ...))
-                    (apply append (map (lambda (exp) (eval-exp exp bind bitwidth safe)) (cons exp1 exps)))]
+                    (apply append (map (lambda (exp) (eval-exp exp bind bitwidth safe))
+                                       (append-map union-leaves (cons exp1 exps))))]
                    
                    [(ast:node/expr/op-on-exprs/- _ _ `(,exp-1 ,exp-2))
                     (set->list (set-subtract
@@ -141,10 +148,6 @@
                     (append (build-iden bind) (tc (eval-exp child-exp bind bitwidth safe)))]
                    [(ast:node/expr/op-on-exprs/~ _ _ `(,child-exp))
                     (map reverse (eval-exp child-exp bind bitwidth safe))]
-                   ; Set comprehension - TODO (do we need this? Thomas says no)
-                   #;[`(set ,var ,lst ,form) (filter (lambda (x) (eval-form form (hash-set bind var (list x)) bitwidth))
-                                                     (eval-exp lst bind bitwidth safe))]
-                   #;[(ast:node/expr/comprehension info arity decls formulas) ...]
                    ; Constants
                    [(ast:node/expr/constant _ _ type)
                     (cond [(equal? type 'none) empty]
@@ -152,20 +155,6 @@
                           [(equal? type 'iden) (build-iden bind)]
                           [else (printf "Not a valid constant: ~a~n" type)])]
                    [(ast:node/expr/atom _ _ name) `((,name))]
-                   ; probably supports box join
-                   ; won't be needed in forge-functional then
-                   #;[`(,p ,vals ...) ;#:when (hash-has-key? bind p)
-                      ; is this one a node/expr/quantifier-var
-                      (with-handlers ([exn:fail? (λ (exn) 
-                                                   (define joined (foldl (λ (x y) `(join ,x ,y)) p vals))
-                                                   (eval-exp joined bind bitwidth safe))])
-                        (match-define (list args alloy) (hash-ref bind p))
-                        (set! vals (for/list ([val vals]) (eval-exp val bind bitwidth)))
-                        ; (make-hash (map cons args vals))
-                        ; (for/hash ([a args][v vals]) (values a v))
-                        (define bind2 (hash-union bind (make-hash (map cons args vals)) #:combine/key (lambda (k v1 v2) v2)))
-                        (define kodkod (alloy->kodkod alloy))
-                        (eval-exp kodkod bind2 bitwidth))]
                    [id
                     (cond
                       [(relation? id)
@@ -179,7 +168,8 @@
                       ; Otherwise, If this is an unsafe evaluation, just return the value
                       [(not safe) id]
                       ; Otherwise, if this is a safe evaluation, throw an error
-                      [else (ast:raise-forge-error #:msg (format "Value of expression ~a is not defined in this context." id)
+                      [else (ast:raise-forge-error #:msg ((undefined-value-message)
+                                                          (if (ast:node/expr/relation? id) (ast:relation-name id) id))
                                                #:context id)])]
                    [_ (ast:raise-forge-error #:msg "Not a supported expression for Racket-side evaluation"
                                          #:context exp)]))
@@ -190,7 +180,6 @@
                   (canonicalize-result (list (list result)))
                   (canonicalize-result (remove-duplicates result))))
   
-  ;(printf "exp : ~v = ~v~n" exp ret) 
   ret)
 
 ; extract list of all atoms used across all relations
@@ -259,6 +248,12 @@
     [(eq? 0 result) #f]
     [else result]))
     
+; Extract the operands of a possibly-nested union: (+ a (+ b c)) => (a b c).
+(define (union-leaves e)
+  (match e
+    [(ast:node/expr/op-on-exprs/+ _ _ kids) (append-map union-leaves kids)]
+    [_ (list e)]))
+
 ; Explicitly finds the transitive closure of a relation
 (define (tc lst)
   (define startlen (length lst))
@@ -305,12 +300,6 @@
     ; works assuming (int n) requires n to be an int
     [(ast:node/int/constant _ n)
      (eval-int-expr n bind bitwidth)]
-    ; DO WE NEED sum-quant in INSTANCES?
-    ; similar to set comprehension
-    #;[`(sum ,var ,lst ,ie)
-       (foldl (λ (x res) (+ res (eval-int-expr ie (hash-set bind var (list x)) bitwidth)))
-              0
-              (eval-exp lst bind bitwidth))]
     [(ast:node/int/op-on-exprs/sum _ `(,child-exp))
      (wraparound
       (let ([expr-val (eval-exp child-exp bind bitwidth)])

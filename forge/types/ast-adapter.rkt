@@ -80,7 +80,7 @@
         node/formula/op-children
         ;; Other exports
         relation-arity just-location-info quantified-formula multiplicity-formula empty-nodeinfo
-        join/func one/func build-box-join univ none raise-forge-error &&/func &/func ||/func +/func
+        join/func one/func build-box-join univ none raise-forge-error raise-forge-warning &&/func &/func ||/func +/func
         -/func =/func */func iden ^/func set/func relation-name always/func maybe-and->list
         int=/func int</func int/func card/func in/func true-formula false-formula no/func
         lone/func ->/func some/func !/func add/func sum/func sing/func var ite/func atom/func
@@ -104,7 +104,7 @@
   [#:struct (node/formula node) ()]
   [#:struct (node/formula/constant node/formula) ([type : Any])]
   [#:struct (node/fmla/pred-spacer node/formula) ([name : Symbol] [args : (Listof node)] [expanded : node/formula])]
-  [#:struct (node/expr/quantifier-var node/expr) ([sym : Symbol] [name : Symbol])]
+  [#:struct (node/expr/quantifier-var node/expr) ([sym : Symbol] [name : Symbol] [mult : Symbol])]
   [#:struct (node/expr/relation node/expr)
      ([name : String]
       [typelist-thunk : (-> (Listof Any))]
@@ -192,8 +192,8 @@
 
   ; This by itself doesn't allow the type system to differentiate between
   ; the #t and #f modes, even when they are provided as literals. 
-  ;(->* (#:msg String #:context Any) (#:raise? Boolean) Void) ]
   [raise-forge-error (->* () (#:msg String #:context Any #:raise? Boolean) Nothing)] 
+  [raise-forge-warning (->* () (#:msg String #:context Any) Void)]
   [relation-arity (-> Any Integer)]
   [relation-name (-> node/expr/relation String)]
   [just-location-info (-> (U srcloc #f) nodeinfo)]
@@ -227,7 +227,7 @@
   [add/func (->* (node/int node/int) (#:info nodeinfo) node/int)]
   [sum/func (->* (node/expr) (#:info nodeinfo) node/int)]
   [sing/func (->* (node/int) (#:info nodeinfo) node/expr)]
-  [var (->* () (Symbol #:info nodeinfo) node/expr/quantifier-var)]
+  [var (->* () (Symbol #:info nodeinfo #:mult Symbol #:arity Number) node/expr/quantifier-var)]
   [(ite/info-helper ite/func) (-> nodeinfo node/formula node/expr node/expr node/expr)]
   [build-box-join (-> node/expr (Listof node/expr) node/expr)]
   [maybe-and->list (-> node/formula (Listof node/formula))]
@@ -269,8 +269,3 @@
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-; (: ->immutable/hash (All (K V) (-> (HashTable K V) (Immutable-HashTable K V))))
-; (define (->immutable/hash ht)
-;   (for/hash ([k v]))
-;   (hash-map/copy ht (lambda (k v) (values k v))  #:kind 'immutable))

@@ -134,11 +134,6 @@
 (define-syntax-class $Import
   #:attributes (hd file-path as-name)
   #:commit
-  ;(pattern ((~and hd (~datum Import))
-  ;          import-name:$QualName
-  ;          (~optional (~seq "[" other-names:$QualNameList "]"))
-  ;          (~optional (~seq "as" as-name:$Name)))
-  ;  #:with file-path #'#f)
   (pattern ((~and hd (~datum Import))
             file-path:str
             (~optional (~seq "as" as-name:$Name) #:defaults ([as-name #'#f])))))
@@ -283,9 +278,7 @@
   #:attributes (hd (name* 1) expr (decls 1))
   #:commit
   (pattern ((~and hd (~datum Decl))
-            ;(~optional "disj")
             namelist:$NameList
-            ;(~optional "disj")
             (~optional "set")
             expr:$Expr)
     #:attr (name* 1) (syntax-e #'(namelist.name* ...))
@@ -299,20 +292,14 @@
   (pattern ((~and hd (~datum DeclList))
             -decls:$Decl ...)
     #:attr (decls 1) (syntax-e #'(-decls.decls ... ...))))
-    ;;(datum->syntax this-syntax
-    ;;  (apply append
-    ;;         (map syntax->list
-    ;;              (syntax->list #'(decls.translate ...)))))
 
 ; ArrowDecl : DISJ-TOK? NameList /COLON-TOK DISJ-TOK? ArrowMult ArrowExpr
 (define-syntax-class $ArrowDecl
   #:attributes (hd (name* 1) (type* 1) mult is-var)
   #:commit
   (pattern ((~and hd (~datum ArrowDecl))
-            ;(~optional "disj")
             (~optional isv:$VarKeyword #:defaults ([isv #'#f])) ; electrum
             namelist:$NameList
-            ;(~optional "disj") 
             mult-class:$ArrowMult
             typelist:$ArrowExpr)
     #:attr (name* 1) (syntax-e #'(namelist.name* ...))
@@ -383,11 +370,6 @@
             (~seq -decls:$Decl ...))
     ;; TODO clean up, find examples, is this even used?
     #:attr (decls 1) (syntax-e #'(-decls.decls ... ...))))
-    ;(datum->syntax #'(decls ...)
-    ;  (apply append (map (compose (curry map car )
-    ;                              (curry map syntax->list )
-    ;                              syntax->list)
-    ;                     (syntax->list #'(decls.translate ...)))))
 
 ; AssertDecl : /ASSERT-TOK Name? Block
 (define-syntax-class $AssertDecl
