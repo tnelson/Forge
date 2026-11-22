@@ -247,6 +247,11 @@ jobs:
       run: |
         raco pkg update --auto --no-docs --batch ./forge 2>$null; if ($LASTEXITCODE -ne 0) { raco pkg install --auto --no-docs ./forge }
 
+    # Confirm the solver cache works on Windows, which is known for differing from Mac/Linux on paths.
+    - name: Run solve-cache tests
+      shell: cmd
+      run: raco test -s test forge/tests/forge/other/solve-cache.rkt
+
     - name: Run custom solver tests
       shell: cmd
       run: |

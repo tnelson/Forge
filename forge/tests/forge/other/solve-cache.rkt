@@ -27,15 +27,16 @@ EOF
   )
 
 ; Runs `model` with `cache-dir` and returns success/output/log. 
-(define (run-model dir cache-dir model #:verify? [verify? #f] #:args [args '()])
+(define (run-model dir cache-dir model #:verify? [verify? #f] #:args [args '()] #:env [extra-env '()])
   (define file (build-path dir "model.frg"))
   (call-with-output-file file #:exists 'truncate (lambda (o) (write-string model o)))
   (define log (build-path dir "events.txt"))
   (when (file-exists? log) (delete-file log))
   (define env (environment-variables-copy (current-environment-variables)))
-  (environment-variables-set! env #"FORGE_SOLVE_CACHE" (path->bytes cache-dir))
+  (environment-variables-set! env #"FORGE_SOLVE_CACHE" (and cache-dir (path->bytes cache-dir)))
   (environment-variables-set! env #"FORGE_SOLVE_CACHE_LOG" (path->bytes log))
   (environment-variables-set! env #"FORGE_SOLVE_CACHE_VERIFY" (if verify? #"1" #f))
+  (for ([name+value extra-env]) (environment-variables-set! env (car name+value) (cdr name+value)))
   (define out (open-output-string))
   (define ok?
     (parameterize ([current-environment-variables env]
@@ -120,6 +121,24 @@ EOF
     (check-true ok? out)
     (check-equal? (length (regexp-match* #rx"could not write to the solve cache" out)) 1 out)
     (check-equal? (count "store-failed" events) 4 out))
+
+  ; Prevent the test from modifying the running user's own cache. 
+  ; Use LOCALAPPDATA on Windows, XDG_CACHE_HOME on non-MacOS Unix, home directory on MacOS. 
+  (test-case "without FORGE_SOLVE_CACHE, entries go to the default location"
+    (define-values (var base expected)
+      (case (system-type 'os*)
+        [(windows) (values #"LOCALAPPDATA" (build-path dir "local") (build-path dir "local" "Racket" "forge" "solve-cache"))]
+        [(macosx) (values #f #f #f)]
+        [else (values #"XDG_CACHE_HOME" (build-path dir "xdg") (build-path dir "xdg" "racket" "forge" "solve-cache"))]))
+    (when (and var base expected)
+      ; Racket uses XDG_CACHE_HOME/racket only if that directory exists
+      (make-directory* (build-path base "racket"))
+      (define env (list (cons var (path->bytes base))))
+      (run-model dir #f model #:env env)
+      (define-values (ok? out events) (run-model dir #f model #:env env))
+      (check-true ok? out)
+      (check-equal? (count "hit" events) 4 out)
+      (check-true (directory-exists? (build-path expected "forge-solve-cache-v1")) out)))
 
   (test-case "--clear-solve-cache deletes only the cache's own subdirectories"
     (define other (build-path cache-dir "unrelated.txt"))
