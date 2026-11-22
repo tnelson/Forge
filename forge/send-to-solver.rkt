@@ -36,7 +36,15 @@
 (require/typed forge/pardinus-cli/server/kks
   [(start-server pardinus:start-server ) (-> Symbol Symbol (U False Path-String)
   (Values Output-Port Input-Port Input-Port  (-> Void) (-> Boolean)))]
-  [(native-glucose-available? pardinus:native-glucose-available?) (-> Boolean)])
+  [(native-glucose-available? pardinus:native-glucose-available?) (-> Boolean)]
+  [(predict-native-glucose-available? pardinus:predict-native-glucose-available?) (-> (U False Path-String) Boolean)]
+  [(warning-count pardinus:warning-count) (-> Integer)]
+  [(read-ack pardinus:read-ack) (-> Input-Port Input-Port Any)])
+
+(require (only-in forge/solver-specific/solve-cache
+                  solve-cache-verify? take-solve-expectation! verdict-meets-expectation? canonicalize-problem
+                  jvm-key-properties problem-key solve-cache-lookup solve-cache-store! response-verdict
+                  solve-cache-log!))
 
 ; Separate solver-specific translation for each solver backend
 (require/typed forge/solver-specific/pardinus
@@ -45,7 +53,12 @@
                       (Values Any Any))]
   [get-next-kodkod-model (->* ((-> Boolean) Symbol Any (Listof FAtom) Any 
                                Output-Port Input-Port Input-Port)
-                         (String) (U Sat Unsat Unknown))])
+                         (String) (U Sat Unsat Unknown))]
+  [write-kodkod-problem (-> Symbol Run-spec Integer (Listof FAtom) Any Any Any Any
+                            (Listof node/formula) Output-Port
+                            (Values Any Any))]
+  [kodkod-solve-raw (-> Symbol String Output-Port Input-Port Input-Port Any)]
+  [process-kodkod-raw (->* (Any Any (Listof FAtom) Any) (#:from-solved-cache? Boolean) (U Sat Unsat Unknown))])
 
 (require/typed forge/solver-specific/cvc5-tor
   [send-to-cvc5-tor (-> Symbol Run-spec Integer (Listof FAtom) Any Any Any Any 
@@ -54,8 +67,6 @@
   [get-next-cvc5-tor-model (->* ((-> Boolean) Symbol Any (Listof FAtom) Any 
                                Output-Port Input-Port Input-Port)
                          (String #:run-command (U False Syntax)) (U Sat Unsat Unknown))])
-
-; Disable DrRacket GUI extension/tool
 
 (provide send-to-solver reset-run-name-history! stop-solver-process!)
 
@@ -230,6 +241,15 @@
   (define kind (list backend (get-option run-spec 'problem_type)))
   (unless (equal? (unbox server-kind) kind) (stop-solver-process!))
   (set-box! server-kind kind)
+  ; If the solve cache is on, don't start Pardinus unless it's necessary.
+  (define use-solve-cache? (and (equal? backend 'pardinus)
+                                (equal? (get-option run-spec 'solve_cache) 'on)))
+  (define cache-java-exe : (U False Path-String)
+    (let ([java-loc (get-option run-spec 'java_exe_location)])
+      (and (path-string? java-loc) java-loc)))
+
+  (: start-or-reuse-server! (-> Server-ports))
+  (define (start-or-reuse-server!)
   (define unboxed (unbox server-state))
   (define-values (stdin stdout stderr shutdown is-running?)
     (cond
@@ -280,6 +300,9 @@
   ; Remember the solver process now. If this run fails before sending anything, 
   ; we want to use the existing process, rather than starting a new one.
   (set-box! server-state (Server-ports stdin stdout stderr shutdown is-running?))
+  (Server-ports stdin stdout stderr shutdown is-running?))
+  (: eager-ports (U False Server-ports))
+  (define eager-ports (if use-solve-cache? #f (start-or-reuse-server!)))
 
   ; Confirm that if the user is invoking a custom solver, that custom solver exists
   (define solver-opt (get-option run-spec 'solver))
@@ -288,7 +311,10 @@
   (define (resolve-default-solver) : Symbol
     (define choice
       (cond [(equal? 'target (get-option run-spec 'problem_type)) 'PMaxSAT4J]
-            [(pardinus:native-glucose-available?) 'Glucose]
+            [(if use-solve-cache?
+                 (pardinus:predict-native-glucose-available? cache-java-exe)
+                 (pardinus:native-glucose-available?))
+             'Glucose]
             [else 'SAT4J]))
     (when (>= (get-verbosity) VERBOSITY_HIGH)
       (printf "  Available default solver (~a) used.~n" choice))
@@ -357,7 +383,17 @@
   ;; Beginning to send to solver. All type-checking must be complete _before_ this point.
   ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
   
-  (define get-next-model
+  (: get-next-model (-> String (U Sat Unsat Unknown)))
+  (: run-ports Server-ports)
+  (define-values (get-next-model run-ports)
+    (if (not eager-ports)
+        (solve-via-cache run-name run-spec kind bitwidth all-atoms solverspec total-bounds run-constraints
+                         cache-java-exe start-or-reuse-server!)
+        (let ([stdin (Server-ports-stdin eager-ports)]
+              [stdout (Server-ports-stdout eager-ports)]
+              [stderr (Server-ports-stderr eager-ports)]
+              [is-running? (Server-ports-is-running? eager-ports)])
+          (values
     ; If sending fails partway, stop the solver process and let the next run restart.
     (with-handlers ([exn:fail? (lambda ([e : exn:fail]) (stop-solver-process!) (raise e))])
     (cond [(equal? backend 'smtlibtor)
@@ -371,7 +407,8 @@
              (define-values (all-rels core-map)
                (send-to-kodkod run-name run-spec bitwidth all-atoms solverspec total-bounds bound-lower bound-upper run-constraints stdin stdout stderr))
              (lambda ([mode : String]) (get-next-kodkod-model is-running? run-name all-rels all-atoms core-map stdin stdout stderr mode)))]
-          [else (raise-forge-error #:msg (format "Invalid backend: ~a" backend) #:context run-command)])))
+          [else (raise-forge-error #:msg (format "Invalid backend: ~a" backend) #:context run-command)]))
+          eager-ports))))
            
      
   
@@ -386,14 +423,82 @@
   (define results
     (tree:make-node/func get-next-model "start" next-button))
 
-  (define new-server-state (Server-ports stdin stdout stderr shutdown is-running?))
-
   (values results 
           all-atoms 
-          new-server-state
+          run-ports
           (Kodkod-current (length run-constraints) 0 0)
           ; This becomes the "kodkod-bounds" field of the Run that is eventually created.
           total-bounds))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; Pardinus backend for when the solver cache is on. Creates problem text and checks the cache.
+; If it's a hit, use the first result. If it's a miss, invoke Pardinus and store its first result.
+(: solve-via-cache (-> Symbol Run-spec Any Integer (Listof FAtom) Any (Listof bound)
+                       (Listof node/formula) (U False Path-String) (-> Server-ports)
+                       (Values (-> String (U Sat Unsat Unknown)) Server-ports)))
+(define (solve-via-cache run-name run-spec kind bitwidth all-atoms solverspec total-bounds
+                         run-constraints java-exe start-or-reuse-server!)
+  (define out (open-output-string))
+  (define-values (all-rels core-map)
+    (write-kodkod-problem run-name run-spec bitwidth all-atoms solverspec total-bounds
+                          bound-lower bound-upper run-constraints out))
+  (define text (get-output-string out))
+  (define expected (take-solve-expectation! run-name))
+  (define canonical (canonicalize-problem text run-name))
+  (define key (and canonical (problem-key canonical kind (jvm-properties java-exe))))
+  (define cached (and key (solve-cache-lookup key run-name)))
+  (define stored-verdict (response-verdict cached))
+  ; FORGE_SOLVE_CACHE_VERIFY overrides the default use-cache option
+  (define use-cache? (and stored-verdict expected (not (solve-cache-verify?))
+                      (verdict-meets-expectation? stored-verdict expected)))
+  (when key
+    (solve-cache-log! (cond [use-cache? "hit"] [(not stored-verdict) "miss"] [(solve-cache-verify?) "verify"]
+                            [expected "mismatch"] [else "no-expectation"])
+                      key (format "~a\t~a" run-name (or expected "-"))))
+  (cond
+    [use-cache?
+     ; Since the run's result was loaded from cache, the solver was never started. 
+     ; Closing it does nothing, starting it should be an error. 
+     (values (lambda ([mode : String])
+               (if (equal? mode "start")
+                   (process-kodkod-raw cached all-rels all-atoms core-map #:from-solved-cache? #t)
+                   ;; *** Why is this a user-error rather than a forge-error?
+                   (raise-user-error (format "Run ~a was answered from the solve cache and has no further results." run-name))))
+             (Server-ports (open-output-string) (open-input-bytes #"") (open-input-bytes #"") void (lambda () #f)))]
+    [else
+     (define ports (start-or-reuse-server!))
+     (define warnings-before (pardinus:warning-count))
+     (with-handlers ([exn:fail? (lambda ([e : exn:fail]) (stop-solver-process!) (raise e))])
+       (write-string text (Server-ports-stdin ports))
+       (flush-output (Server-ports-stdin ports))
+       (pardinus:read-ack (Server-ports-stdout ports) (Server-ports-stderr ports)))
+     (values
+      (lambda ([mode : String])
+        (unless ((Server-ports-is-running? ports))
+          (raise-user-error "KodKod server is not running."))
+        (when (is-run-closed? run-name)
+          (raise-user-error (format "Run ~a has been closed." run-name)))
+        (define raw (kodkod-solve-raw run-name mode (Server-ports-stdin ports)
+                                      (Server-ports-stdout ports) (Server-ports-stderr ports)))
+        (define verdict (response-verdict raw))
+        (when (and key verdict (equal? mode "start"))
+          ; If verifying the cache (i.e., ignoring it and re-running), error if mismatch.
+          (cond [(not stored-verdict)
+                 (when (= warnings-before (pardinus:warning-count)) (solve-cache-store! key raw))]
+                [(eq? verdict stored-verdict) (solve-cache-log! "verify-ok" key)]
+                [else (solve-cache-log! "verify-FAILED" key)
+                      (error 'solve-cache "stored verdict ~a differs from solver verdict ~a for run ~a"
+                             stored-verdict verdict run-name)]))
+        (process-kodkod-raw raw all-rels all-atoms core-map))
+      ports)]))
+
+; JVM properties, used as part of solver test-cache key. 
+(: jvm-properties (-> (U False Path-String) String))
+(define (jvm-properties java-exe)
+  (define java (find-java-exe java-exe))
+  (if (and java (file-exists? java))
+      (jvm-key-properties (java-probe java))
+      ""))
 
 (: int-range (-> Integer Integer (Listof Integer)))
 (define (int-range start excluded-end)

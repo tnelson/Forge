@@ -31,7 +31,8 @@
 (require forge/shared
          forge/sigs-structs
          forge/evaluator
-         forge/send-to-solver)
+         forge/send-to-solver
+         (only-in forge/solver-specific/solve-cache note-solve-expectation!))
 
 (require (only-in forge/lang/alloy-syntax/parser [parse forge-lang:parse])
          (only-in forge/lang/alloy-syntax/tokenizer [make-tokenizer forge-lang:make-tokenizer]))
@@ -906,6 +907,8 @@
         #:target (or/c Target? #f)
         #:command syntax?)
        void?)
+  ; Start by registering the expectation (in case the solver-cache is being used.)
+  (note-solve-expectation! name expected)
   (cond
     [(equal? expected 'checked)
      (let* ([test-check (check-from-state state

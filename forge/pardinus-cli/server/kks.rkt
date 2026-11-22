@@ -18,7 +18,13 @@
 
 (define server-name "Pardinus")
 
-(provide start-server native-glucose-available?) 
+(provide start-server native-glucose-available? predict-native-glucose-available?)
+
+; Solver-level warnings should prevent caching for the run yielding the warning.
+(provide warning-count)
+(define warnings-received 0)
+(define (note-warning!) (set! warnings-received (add1 warnings-received)))
+(define (warning-count) warnings-received)
 (define (start-server [solver-type 'stepper] [solver-subtype 'default] [java-exe #f])
   (when (>= (get-verbosity) VERBOSITY_HIGH)
     (printf "Starting ~a server.~n" server-name))
@@ -184,6 +190,7 @@
      (read-solution port err-port)]
     ; Pardinus reports problems that are recoverable with `(warning "...")`.
     [(list (== 'warning) (? string? msg))
+     (note-warning!)
      (raise-forge-warning #:msg msg #:context server-name)
      (read-solution port err-port)]
     
@@ -230,6 +237,7 @@
     [(list (== 'info ) _ ...)
      (read-evaluation port err-port)]
     [(list (== 'warning) (? string? msg))
+     (note-warning!)
      (raise-forge-warning #:msg msg #:context server-name)
      (read-evaluation port err-port)]
     [(list (== 'evaluated) (== ':expression) atoms)
@@ -258,6 +266,7 @@
     [(list (== 'info ) _ ...)     
      (read-ack port err-port)]
     [(list (== 'warning) (? string? msg))
+     (note-warning!)
      (raise-forge-warning #:msg msg #:context server-name)
      (read-ack port err-port)]
     [(list (== 'ack) id)     

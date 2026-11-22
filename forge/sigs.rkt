@@ -19,6 +19,7 @@
          forge/utils/target-oriented)
 (require (only-in forge/lang/reader [read-syntax read-surface-syntax]))
 (require forge/server/eval-model)
+(require (only-in forge/solver-specific/solve-cache note-solve-expectation! clear-solve-cache!))
 (require forge/server/forgeserver)
 (require forge/solver-specific/translate-to-kodkod-cli
          forge/solver-specific/translate-from-kodkod-cli
@@ -725,6 +726,7 @@
           ; It may not be immediately obvious why we would ever test for unknown,
           ; but it seems reasonable to support it in the engine, regardless.
           [(member 'expected '(sat unsat unknown))           
+           (note-solve-expectation! 'name 'expected)
            run-stx
            (define first-instance (tree:get-value (Run-result name)))
            (define actual (cond [(Sat? first-instance) 'sat]
@@ -748,6 +750,7 @@
                       (close-run name)))]
 
           [(equal? 'expected 'checked)
+           (note-solve-expectation! 'name 'checked)
            check-stx
            (define first-instance (tree:get-value (Run-result name)))
            (cond [(Sat? first-instance)
@@ -795,6 +798,7 @@
                      (raise-forge-error
                       #:msg (format "example ~a: Can't have examples when problem_type option is temporal" 'name)
                       #:context #,(build-source-location stx)))
+                   (note-solve-expectation! 'name 'sat)
                    run-stx
                    (define first-instance (tree:get-value (Run-result name)))
                    (cond
@@ -834,6 +838,7 @@
                  (raise-forge-error
                   #:msg (format "example ~a: Can't have examples when problem_type option is temporal" 'name)
                   #:context #,(build-source-location stx)))
+               (note-solve-expectation! 'name 'sat)
                run-stx
                (define first-instance (tree:get-value (Run-result name)))
                (cond
@@ -1239,6 +1244,9 @@
                                      (string->option-type OPTION-NAME OPTION-VALUE))
                         ; Don't allow the Forge file to reset this option.
                         (set-box! option-overrides (cons (string->symbol OPTION-NAME) (unbox option-overrides))))]
+ [("--clear-solve-cache")
+  "Delete the solve cache before running"
+  (printf "Cleared the solve cache in ~a~n" (clear-solve-cache!))]
  [("-L" "--logfile") LOGFILE-PATH
                      "Log filename"
                      (setup-logfile! LOGFILE-PATH)]

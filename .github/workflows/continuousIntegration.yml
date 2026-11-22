@@ -153,10 +153,25 @@ jobs:
       run: |
         raco pkg update --auto --no-docs --batch ./forge 2>/dev/null || raco pkg install --auto --no-docs ./forge
 
+    # Don't re-solve unnecessarily. If the Pardinus problem, JAR version, and JVM version
+    # are the same, look in the cache before invoking the solver. 
+    - name: Cache solver verdicts
+      if: ${{ !matrix.custom-run }}
+      uses: actions/cache@v4
+      with:
+        path: ~/.forge-solve-cache
+        key: forge-solve-${{ runner.os }}-${{ matrix.name }}-${{ hashFiles('forge/pardinus-cli/jar/**') }}-${{ github.sha }}
+        restore-keys: forge-solve-${{ runner.os }}-${{ matrix.name }}-${{ hashFiles('forge/pardinus-cli/jar/**') }}-
+
     # Primary tests (excluding custom solver tests)
     - name: Run tests
       if: ${{ !matrix.custom-run }}
       run: |
+        export FORGE_SOLVE_CACHE="$HOME/.forge-solve-cache"
+        # A `git push` to the `main` will verify, rather than trust, the cache. 
+        if [[ "${{ github.event_name }}" == "push" && "${{ github.ref }}" == "refs/heads/main" ]]; then
+          export FORGE_SOLVE_CACHE_VERIFY=1
+        fi
         cd forge/
         chmod +x run-tests.sh
         for dir in ${{ matrix.test-dir }}; do

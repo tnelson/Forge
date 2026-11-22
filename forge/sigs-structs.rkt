@@ -273,6 +273,7 @@
         'test_keep         'first
         'no_overflow       'false
         'fol2bool_cache_record_limit #f
+        'solve_cache       (if (equal? (getenv "FORGE_SOLVE_CACHE") "off") 'off 'on)
         'java_exe_location #f))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -328,6 +329,7 @@
         'test_keep (oneof-pred '(first last))
         'no_overflow (oneof-pred '(false true))
         'fol2bool_cache_record_limit (lambda (x) (or (not x) (exact-positive-integer? x)))
+        'solve_cache (oneof-pred '(on off))
         'java_exe_location (lambda (x) (or (equal? x #f) (string? x)))))
 
 (define option-types-names
@@ -352,6 +354,7 @@
         'test_keep "one of: first or last"
         'no_overflow "one of: false or true"
         'fol2bool_cache_record_limit "positive integer"
+        'solve_cache "one of: on or off"
         'java_exe_location "string"))
 
 

@@ -32,12 +32,21 @@
 (require forge/solver-specific/pardinus-cores)
 
 (provide send-to-kodkod get-next-kodkod-model)
+(provide write-kodkod-problem kodkod-solve-raw process-kodkod-raw)
 
 (define (send-to-kodkod run-name run-spec bitwidth all-atoms solverspec total-bounds bound-lower bound-upper run-constraints stdin stdout stderr)
+  (define-values (all-rels core-map)
+    (write-kodkod-problem run-name run-spec bitwidth all-atoms solverspec total-bounds bound-lower bound-upper run-constraints stdin))
+  ; Wait for the acknowledgement before sending more messages.
+  (pardinus:read-ack stdout stderr)
+  (values all-rels core-map))
+
+; Writes a problem (up to end-of-input) to `port` without waiting for acknowledgement. 
+(define (write-kodkod-problem run-name run-spec bitwidth all-atoms solverspec total-bounds bound-lower bound-upper run-constraints port)
   
   ; Print targets
   (define-syntax-rule (pardinus-print lines ...)
-    (pardinus:cmd [stdin] lines ...)) 
+    (pardinus:cmd [port] lines ...)) 
 
   (pardinus-print (pardinus:print-cmd (format "(with ~a" run-name)))
   (pardinus-print
@@ -144,16 +153,11 @@
   ; Close the "with" scope.
   (pardinus-print (pardinus:print-cmd ")"))
   (pardinus-print (pardinus:print-eoi))
-  ; Wait for the acknowledgement before sending more messages.
-  (pardinus:read-ack stdout stderr)
 
   ; Done with the problem spec. Return any needed shared data specific to this backend.
   (values all-rels core-map))
 
-
-
-
-(define (format-statistics stats)
+(define (format-statistics stats [from-solved-cache? #f])
   (let* ([vars (assoc 'size-variables stats)]
          [prim (assoc 'size-primary stats)]
          [clauses (assoc 'size-clauses stats)]
@@ -161,7 +165,7 @@
          [ts (assoc 'time-solving stats)]
          [tcx (assoc 'time-core stats)]
          [tcstr (if tcx (format " Core min (ms): ~a" tcx) "")]
-         ; Cache statistics may not be reported
+         ; FOL2Bool Cache statistics may not be reported
          [hits (assoc 'fol2bool-cache-hits stats)]
          [cachestr (if hits
                        (format "~nFOL2Bool cache: ~a; ~a; ~a; ~a" hits
@@ -169,8 +173,11 @@
                                (assoc 'fol2bool-cache-largest-record stats)
                                (assoc 'fol2bool-cache-resets stats))
                        "")])
+    (if from-solved-cache?
+        (format "#vars: ~a; #primary: ~a; #clauses: ~a~nVerdict from solve cache (when stored: transl (ms): ~a; solving (ms): ~a)"
+                vars prim clauses (and tt (cadr tt)) (and ts (cadr ts)))
     (format "#vars: ~a; #primary: ~a; #clauses: ~a~nTransl (ms): ~a; Solving (ms): ~a~a~a"
-            vars prim clauses tt ts tcstr cachestr)))
+            vars prim clauses tt ts tcstr cachestr))))
   
 ; Print solve
 (define (get-next-kodkod-model is-running? run-name all-rels all-atoms core-map stdin stdout stderr [mode ""])
@@ -187,9 +194,18 @@
     (raise-user-error (format "Run ~a has been closed." run-name)))
     
   (pardinus-print (pardinus:solve run-name mode))
+  (process-kodkod-raw (pardinus:read-solution stdout stderr) all-rels all-atoms core-map))
+
+; What is the next result of `run-name`? 
+(define (kodkod-solve-raw run-name mode stdin stdout stderr)
+  (pardinus:cmd [stdin] (pardinus:solve run-name mode))
+  (pardinus:read-solution stdout stderr))
+
+; Converts a response into a result, printing statistics+core (if any).
+(define (process-kodkod-raw raw all-rels all-atoms core-map #:from-solved-cache? [from-solved-cache? #f])
   (define result (translate-from-kodkod-cli
                   'run 
-                  (pardinus:read-solution stdout stderr) 
+                  raw
                   all-rels 
                   all-atoms
                   core-map))
@@ -205,5 +221,5 @@
                (pretty-print-core-formula idx (length (Unsat-core result)) id core-map)))
     
   (when (@>= (get-verbosity) VERBOSITY_LOW)
-    (displayln (format-statistics (if (Sat? result) (Sat-stats result) (Unsat-stats result)))))
+    (displayln (format-statistics (if (Sat? result) (Sat-stats result) (Unsat-stats result)) from-solved-cache?)))
   result)
